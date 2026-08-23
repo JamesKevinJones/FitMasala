@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Light launch window. The night variant in values-night/ is the dark one.
+         Two variants rather than AppCompat's DayNight, because this app has no
+         appcompat dependency and does not need one for a window background.
+
+         Matching the launch window to the theme Compose is about to draw is what
+         stops a white flash on cold start under the dark scheme - the most
+         visible theming bug an app can ship. -->
+    <style name="Theme.FitMasala" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/fm_window</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

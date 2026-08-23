@@ -1,0 +1,31 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+/app/build/
+/app/release/
+
+# Keystores - never commit signing credentials
+*.jks
+*.keystore
+keystore.properties
+
+# Android Studio
+.navigation/
+captures/
+.externalNativeBuild/
+
+# Local scratch
+*.hprof
+
+# Kotlin compiler daemon scratch state
+.kotlin/
+
+# Agent-session scratch artifacts
+.artifacts/

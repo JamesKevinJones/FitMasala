@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only what the platform needs before Compose takes over. The real palette is
+     in core/ui/theme/Tones.kt. These two mirror N98 (light) and N6 (dark). -->
+<resources>
+    <color name="fm_window">#FFFDF9F2</color>
+    <color name="ic_launcher_background">#FF100F0D</color>
+</resources>
