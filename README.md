@@ -27,9 +27,13 @@ deficit instead of stalling the plan.
 
 ## Demo
 
-[![FitMasala demo](brag-output/brag.jpg)](brag-output/brag.mp4)
+![FitMasala dashboard demo](brag-output/demo.gif)
 
-*Click the image to play the video.*
+[![Watch the full launch video (with sound)](brag-output/brag.jpg)](brag-output/brag.mp4)
+
+*The loop above is a silent excerpt of the dashboard. Click the image below it
+for the full 22s video with music — GitHub doesn't serve raw video with a
+playable content-type, so that one downloads rather than playing inline.*
 
 ## Features
 
