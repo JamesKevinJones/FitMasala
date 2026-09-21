@@ -25,9 +25,11 @@ either number directly, the app back-calculates real maintenance calories
 from the *observed trend*, so a consistent estimation bias cancels out of the
 deficit instead of stalling the plan.
 
-## Screenshots
+## Demo
 
-*(add screenshots here — `docs/screenshots/`)*
+<video src="https://github.com/JamesKevinJones/FitMasala/raw/main/brag-output/brag.mp4" controls muted playsinline poster="https://github.com/JamesKevinJones/FitMasala/raw/main/brag-output/brag.jpg" width="100%"></video>
+
+*(If the player above doesn't render, [watch/download the video directly](brag-output/brag.mp4).)*
 
 ## Features
 
