@@ -27,9 +27,9 @@ deficit instead of stalling the plan.
 
 ## Demo
 
-<video src="https://github.com/JamesKevinJones/FitMasala/raw/main/brag-output/brag.mp4" controls muted playsinline poster="https://github.com/JamesKevinJones/FitMasala/raw/main/brag-output/brag.jpg" width="100%"></video>
+[![FitMasala demo](brag-output/brag.jpg)](brag-output/brag.mp4)
 
-*(If the player above doesn't render, [watch/download the video directly](brag-output/brag.mp4).)*
+*Click the image to play the video.*
 
 ## Features
 
