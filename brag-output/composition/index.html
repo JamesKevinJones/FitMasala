@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>FitMasala — brag</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="assets/music/audio-data.js"></script>
+    <style>
+      @font-face {
+        font-family: "DM Sans";
+        src: url("assets/fonts/dm-sans.ttf");
+        font-weight: 100 1000;
+        font-style: normal;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg: #100f0d;
+        --surface-1: #1b1a17;
+        --surface-2: #2a2825;
+        --hairline: rgba(231, 226, 219, 0.08);
+        --text: #e7e2db;
+        --text-dim: rgba(231, 226, 219, 0.62);
+        --saffron: #ffb95c;
+        --macro-protein: #f4a43c;
+        --macro-carbs: #e8c86a;
+        --macro-fat: #d96f4e;
+        --flame-cold: #8a8279;
+        --flame-warm: #f4a43c;
+        --flame-hot: #e06a52;
+      }
+
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+      }
+
+      #root {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+
+      .clip {
+        position: absolute;
+        inset: 0;
+      }
+
+      .scene-surface {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(ellipse 1100px 700px at 50% 42%, var(--surface-1) 0%, var(--bg) 72%);
+        opacity: 1;
+        filter: blur(0px);
+      }
+
+      .display {
+        font-variation-settings: "opsz" 40;
+        letter-spacing: -0.02em;
+      }
+
+      .body-copy {
+        font-variation-settings: "opsz" 14;
+      }
+
+      /* ---------- Scene 1: hook ---------- */
+      #scene-1 .scene-surface {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      #wordmark-1 {
+        font-size: 168px;
+        font-weight: 800;
+        color: var(--saffron);
+        opacity: 1;
+      }
+      #tagline-1 {
+        margin-top: 30px;
+        font-size: 42px;
+        font-weight: 500;
+        color: var(--text);
+        opacity: 1;
+      }
+
+      /* ---------- Scene 2: dashboard ---------- */
+      #eaten-header {
+        position: absolute;
+        top: 96px;
+        left: 120px;
+        font-size: 46px;
+        font-weight: 600;
+        color: var(--text);
+        opacity: 1;
+      }
+
+      #streak-block {
+        position: absolute;
+        top: 88px;
+        right: 120px;
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        opacity: 1;
+      }
+      #flame-icon {
+        width: 66px;
+        height: 66px;
+        fill: var(--flame-cold);
+      }
+      .streak-text {
+        display: flex;
+        flex-direction: column;
+      }
+      #streak-count {
+        font-size: 56px;
+        font-weight: 700;
+        color: var(--text);
+        line-height: 1;
+      }
+      .streak-label {
+        margin-top: 6px;
+        font-size: 26px;
+        font-weight: 500;
+        color: var(--text-dim);
+      }
+
+      #rings-row {
+        position: absolute;
+        top: 300px;
+        left: 0;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        gap: 100px;
+      }
+      #rings-glow {
+        position: absolute;
+        top: 210px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 1100px;
+        height: 480px;
+        border-radius: 480px;
+        background: radial-gradient(ellipse at center, rgba(255, 185, 92, 0.08) 0%, rgba(255, 185, 92, 0) 70%);
+        opacity: 0.06;
+        pointer-events: none;
+      }
+      .ring {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        opacity: 1;
+      }
+      .ring svg {
+        width: 220px;
+        height: 220px;
+      }
+      .ring-track {
+        fill: none;
+        stroke: var(--hairline);
+        stroke-width: 16;
+      }
+      .ring-progress {
+        fill: none;
+        stroke-width: 16;
+        stroke-linecap: round;
+        transform: rotate(-90deg);
+        transform-origin: 50% 50%;
+      }
+      .ring-value {
+        margin-top: -138px;
+        font-size: 44px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .ring-label {
+        margin-top: 128px;
+        font-size: 26px;
+        font-weight: 500;
+        color: var(--text-dim);
+      }
+
+      #fab-stack {
+        position: absolute;
+        bottom: 96px;
+        right: 120px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 18px;
+      }
+      .fab-pill {
+        padding: 20px 34px;
+        background: var(--surface-2);
+        border: 1px solid var(--hairline);
+        border-radius: 44px;
+        font-size: 30px;
+        font-weight: 600;
+        color: var(--text);
+        opacity: 1;
+      }
+
+      /* ---------- Scene 3: chef ---------- */
+      #scene-3 .scene-surface {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      #device-badge {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px 30px;
+        background: var(--surface-2);
+        border: 1px solid var(--hairline);
+        border-radius: 40px;
+        opacity: 1;
+        margin-bottom: 84px;
+      }
+      #device-badge .dot {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: var(--saffron);
+      }
+      #device-badge span {
+        font-size: 28px;
+        font-weight: 600;
+        color: var(--text);
+      }
+      #portion-list {
+        display: flex;
+        flex-direction: column;
+        gap: 40px;
+      }
+      .portion-row {
+        display: flex;
+        align-items: center;
+        gap: 26px;
+        opacity: 1;
+      }
+      .portion-row .mark {
+        width: 20px;
+        height: 20px;
+        background: var(--saffron);
+        border-radius: 6px;
+        flex: none;
+      }
+      .portion-row span {
+        font-size: 58px;
+        font-weight: 700;
+        color: var(--text);
+      }
+
+      /* ---------- Scene 4: plan ---------- */
+      #scene-4 .scene-surface {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      #maintenance-block {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        opacity: 1;
+        margin-bottom: 36px;
+      }
+      #maintenance-label {
+        font-size: 28px;
+        font-weight: 600;
+        color: var(--text-dim);
+        letter-spacing: 0.02em;
+      }
+      #maintenance-number {
+        display: flex;
+        align-items: baseline;
+        gap: 16px;
+        margin-top: 10px;
+      }
+      #maintenance-value {
+        font-size: 108px;
+        font-weight: 800;
+        color: var(--saffron);
+        line-height: 1;
+      }
+      #maintenance-unit {
+        font-size: 36px;
+        font-weight: 600;
+        color: var(--text-dim);
+      }
+      #trend-chart {
+        width: 1360px;
+        height: 320px;
+      }
+      #trend-grid line {
+        stroke: var(--hairline);
+        stroke-width: 1.5;
+      }
+      #trend-path {
+        fill: none;
+        stroke: var(--saffron);
+        stroke-width: 6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      #plan-line {
+        margin-top: 44px;
+        font-size: 34px;
+        font-weight: 500;
+        color: var(--text-dim);
+        opacity: 1;
+      }
+
+      /* ---------- Scene 5: outro ---------- */
+      #scene-5 .scene-surface {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      #wordmark-2 {
+        font-size: 96px;
+        font-weight: 800;
+        color: var(--saffron);
+        opacity: 1;
+      }
+      #outro-line {
+        margin-top: 26px;
+        font-size: 34px;
+        font-weight: 500;
+        color: var(--text);
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="fitmasala"
+      data-start="0"
+      data-width="1920"
+      data-height="1080"
+      data-duration="22.1"
+    >
+      <!-- Scene 1 — Hook — 0 to 4.0 (nominal content ends 3.5, transition out to 4.0) -->
+      <section id="scene-1" class="clip" data-start="0" data-duration="4.0" data-track-index="0">
+        <div class="scene-surface">
+          <div id="wordmark-1" class="display">FitMasala</div>
+          <div id="tagline-1" class="body-copy">Built for one cut. Nobody else&rsquo;s.</div>
+        </div>
+      </section>
+
+      <!-- Scene 2 — Dashboard reveal — 3.5 to 9.24 -->
+      <section id="scene-2" class="clip" data-start="3.5" data-duration="5.74" data-track-index="0">
+        <div class="scene-surface">
+          <div id="eaten-header" class="body-copy">Eaten today</div>
+
+          <div id="streak-block">
+            <svg id="flame-icon" viewBox="0 0 48 64" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M24 2c4 10-8 14-8 24a12 12 0 0 0 24 0c0-6-4-9-6-13 1 5-2 7-4 7-3 0-5-2-5-6 0-5 2-8-1-12z"
+              />
+            </svg>
+            <div class="streak-text">
+              <div id="streak-count" class="display">1</div>
+              <div class="streak-label body-copy">day streak</div>
+            </div>
+          </div>
+
+          <div id="rings-glow"></div>
+          <div id="rings-row">
+            <div class="ring">
+              <svg viewBox="0 0 220 220">
+                <circle class="ring-track" cx="110" cy="110" r="85" />
+                <circle
+                  id="ring-protein"
+                  class="ring-progress"
+                  cx="110"
+                  cy="110"
+                  r="85"
+                  stroke="var(--macro-protein)"
+                  stroke-dasharray="534.07"
+                  stroke-dashoffset="117.5"
+                />
+              </svg>
+              <div id="ring-protein-value" class="ring-value display">0g</div>
+              <div class="ring-label body-copy">Protein</div>
+            </div>
+            <div class="ring">
+              <svg viewBox="0 0 220 220">
+                <circle class="ring-track" cx="110" cy="110" r="85" />
+                <circle
+                  id="ring-carbs"
+                  class="ring-progress"
+                  cx="110"
+                  cy="110"
+                  r="85"
+                  stroke="var(--macro-carbs)"
+                  stroke-dasharray="534.07"
+                  stroke-dashoffset="192.3"
+                />
+              </svg>
+              <div id="ring-carbs-value" class="ring-value display">0g</div>
+              <div class="ring-label body-copy">Carbs</div>
+            </div>
+            <div class="ring">
+              <svg viewBox="0 0 220 220">
+                <circle class="ring-track" cx="110" cy="110" r="85" />
+                <circle
+                  id="ring-fat"
+                  class="ring-progress"
+                  cx="110"
+                  cy="110"
+                  r="85"
+                  stroke="var(--macro-fat)"
+                  stroke-dasharray="534.07"
+                  stroke-dashoffset="224.3"
+                />
+              </svg>
+              <div id="ring-fat-value" class="ring-value display">0g</div>
+              <div class="ring-label body-copy">Fat</div>
+            </div>
+          </div>
+
+          <div id="fab-stack">
+            <div id="fab-1" class="fab-pill body-copy">Snap a meal</div>
+            <div id="fab-2" class="fab-pill body-copy">Ask the chef</div>
+            <div id="fab-3" class="fab-pill body-copy">Start a workout</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Scene 3 — Chef highlight — 8.74 to 14.14 -->
+      <section id="scene-3" class="clip" data-start="8.74" data-duration="5.4" data-track-index="0">
+        <div class="scene-surface">
+          <div id="device-badge">
+            <div class="dot"></div>
+            <span class="body-copy">100% on-device &middot; IFCT-calibrated</span>
+          </div>
+          <div id="portion-list">
+            <div id="portion-1" class="portion-row">
+              <div class="mark"></div>
+              <span class="display">2 roti</span>
+            </div>
+            <div id="portion-2" class="portion-row">
+              <div class="mark"></div>
+              <span class="display">1 katori dal</span>
+            </div>
+            <div id="portion-3" class="portion-row">
+              <div class="mark"></div>
+              <span class="display">1 katori sabzi</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Scene 4 — Plan highlight — 13.64 to 19.06 -->
+      <section id="scene-4" class="clip" data-start="13.64" data-duration="5.42" data-track-index="0">
+        <div class="scene-surface">
+          <div id="maintenance-block">
+            <div id="maintenance-label">Maintenance</div>
+            <div id="maintenance-number">
+              <div id="maintenance-value" class="display">2,430</div>
+              <div id="maintenance-unit">kcal</div>
+            </div>
+          </div>
+          <svg id="trend-chart" viewBox="0 0 1400 360" xmlns="http://www.w3.org/2000/svg">
+            <g id="trend-grid">
+              <line x1="0" y1="60" x2="1400" y2="60" />
+              <line x1="0" y1="180" x2="1400" y2="180" />
+              <line x1="0" y1="300" x2="1400" y2="300" />
+            </g>
+            <path
+              id="trend-path"
+              d="M 0,60 C 120,90 180,40 280,110 C 380,180 420,130 520,190
+                 C 620,250 680,200 780,240 C 880,280 950,230 1050,270
+                 C 1150,310 1250,290 1400,320"
+            />
+          </svg>
+          <div id="plan-line" class="body-copy">Adapts to what happened. Not what you logged.</div>
+        </div>
+      </section>
+
+      <!-- Scene 5 — Outro — 18.56 to 22.10 -->
+      <section id="scene-5" class="clip" data-start="18.56" data-duration="3.54" data-track-index="0">
+        <div class="scene-surface">
+          <div id="wordmark-2" class="display">FitMasala</div>
+          <div id="outro-line" class="body-copy">No backend. No account. Just your phone.</div>
+        </div>
+      </section>
+
+      <!-- Audio -->
+      <audio
+        id="bed"
+        src="assets/music/happy-beats-business-moves-vol-12-by-ende-dot-app.mp3"
+        data-start="0"
+        data-duration="22.1"
+        data-track-index="10"
+        data-automation='{"version":1,"lanes":[{"target":"volume","points":[{"t":0,"v":0},{"t":1.0,"v":0.32},{"t":20.3,"v":0.32},{"t":22.1,"v":0}]}]}'
+      ></audio>
+      <audio
+        id="sfx-rings"
+        src="assets/sfx/interface/drop_001.ogg"
+        data-start="5.9"
+        data-track-index="11"
+        data-volume="0.55"
+      ></audio>
+      <audio
+        id="sfx-streak"
+        src="assets/sfx/interface/bong_001.ogg"
+        data-start="5.73"
+        data-track-index="12"
+        data-volume="0.5"
+      ></audio>
+      <audio
+        id="sfx-portion"
+        src="assets/sfx/ui/rollover2.ogg"
+        data-start="10.8"
+        data-track-index="13"
+        data-volume="0.5"
+      ></audio>
+    </div>
+
+    <script>
+      // ---- one-time setup: measure the trend path length so the line-draw
+      // animates from the real geometry rather than a guessed constant ----
+      var trendPath = document.getElementById("trend-path");
+      var trendLength = trendPath.getTotalLength();
+      trendPath.style.strokeDasharray = trendLength + " " + trendLength;
+      trendPath.style.strokeDashoffset = "0";
+
+      var tl = gsap.timeline({ paused: true });
+
+      // Single primary transition for the whole video: medium blur crossfade.
+      // old surface fades/blurs OUT while the new surface simultaneously
+      // fades/blurs IN — this overlap window IS the exit (no separate exit tween).
+      function crossfade(oldSel, newSel, T) {
+        tl.to(oldSel, { filter: "blur(10px)", scale: 1.03, opacity: 0, duration: 0.5, ease: "power2.inOut" }, T);
+        tl.fromTo(
+          newSel,
+          { filter: "blur(10px)", scale: 0.97, opacity: 0 },
+          { filter: "blur(0px)", scale: 1, opacity: 1, duration: 0.5, ease: "power2.inOut" },
+          T + 0.1,
+        );
+      }
+
+      function counter(id, from, to, duration, pos, format) {
+        var proxy = { v: from };
+        tl.to(
+          proxy,
+          {
+            v: to,
+            duration: duration,
+            ease: "power1.out",
+            onUpdate: function () {
+              document.getElementById(id).textContent = format(Math.round(proxy.v));
+            },
+          },
+          pos,
+        );
+      }
+
+      function grams(n) {
+        return n + "g";
+      }
+      function plain(n) {
+        return String(n);
+      }
+      function withCommas(n) {
+        return n.toLocaleString("en-US");
+      }
+
+      // ================= Scene 1 — Hook =================
+      tl.fromTo("#wordmark-1", { opacity: 0, scale: 0.96 }, { opacity: 1, scale: 1, duration: 0.6, ease: "power3.out" }, 0.2);
+      tl.fromTo("#tagline-1", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 1.2);
+
+      // ---- transition 1: 3.5 -> 4.0, beat-locked target 3.5 (scene boundary) ----
+      crossfade("#scene-1 .scene-surface", "#scene-2 .scene-surface", 3.5);
+
+      // ================= Scene 2 — Dashboard reveal =================
+      tl.fromTo("#eaten-header", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 4.2);
+
+      // macro rings — stroke-dashoffset is a legitimate deterministic tween target
+      tl.fromTo("#ring-protein", { strokeDashoffset: 534.07 }, { strokeDashoffset: 117.5, duration: 1.2, ease: "power2.out" }, 4.4);
+      counter("ring-protein-value", 0, 152, 1.2, 4.4, grams);
+      tl.fromTo("#ring-carbs", { strokeDashoffset: 534.07 }, { strokeDashoffset: 192.3, duration: 1.2, ease: "power2.out" }, 4.55);
+      counter("ring-carbs-value", 0, 134, 1.2, 4.55, grams);
+      tl.fromTo("#ring-fat", { strokeDashoffset: 534.07 }, { strokeDashoffset: 224.3, duration: 1.2, ease: "power2.out" }, 4.7);
+      counter("ring-fat-value", 0, 41, 1.2, 4.7, grams);
+
+      // streak: count 1 -> 12 while the flame steps cold -> warm -> hot
+      counter("streak-count", 1, 12, 1.6, 4.4, plain);
+      tl.to("#flame-icon", { fill: "#F4A43C", duration: 0.3, ease: "power1.inOut" }, 4.93); // beat-grid: cold -> warm
+      tl.to("#flame-icon", { fill: "#E06A52", duration: 0.3, ease: "power1.inOut" }, 5.73); // beat-grid: warm -> hot (SFX: bong_001)
+
+      // FAB: reveal fast, then hold the settled group (sequential-text hold rule)
+      tl.fromTo("#fab-1", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 6.3);
+      tl.fromTo("#fab-2", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 6.55);
+      tl.fromTo("#fab-3", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 6.8);
+
+      // ---- transition 2: 8.74 -> 9.24, beat-locked to strongCue 8.74s (0.99) ----
+      crossfade("#scene-2 .scene-surface", "#scene-3 .scene-surface", 8.74);
+
+      // ================= Scene 3 — Chef highlight =================
+      tl.fromTo("#device-badge", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 9.5);
+      tl.fromTo("#portion-1", { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: 0.35, ease: "power2.out" }, 10.2);
+      tl.fromTo("#portion-2", { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: 0.35, ease: "power2.out" }, 10.5);
+      tl.fromTo("#portion-3", { opacity: 0, x: -16 }, { opacity: 1, x: 0, duration: 0.35, ease: "power2.out" }, 10.8); // SFX: rollover2
+
+      // ---- transition 3: 13.64 -> 14.14, near beat-grid point 13.64s (intentionally not a strong cue) ----
+      crossfade("#scene-3 .scene-surface", "#scene-4 .scene-surface", 13.64);
+
+      // ================= Scene 4 — Plan highlight =================
+      tl.fromTo("#maintenance-block", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 14.35);
+      tl.fromTo(trendPath, { strokeDashoffset: trendLength }, { strokeDashoffset: 0, duration: 1.2, ease: "power2.out" }, 14.35);
+      counter("maintenance-value", 2430, 2290, 1.2, 14.35, withCommas);
+      tl.fromTo("#plan-line", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 15.65);
+
+      // ---- transition 4: 18.56 -> 19.06, beat-locked to strongCue 18.56s (0.99) ----
+      crossfade("#scene-4 .scene-surface", "#scene-5 .scene-surface", 18.56);
+
+      // ================= Scene 5 — Outro =================
+      tl.fromTo("#wordmark-2", { opacity: 0, scale: 0.97 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power3.out" }, 18.9);
+      tl.fromTo("#outro-line", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 19.5);
+
+      // ================= Subtle audio-reactive treatment =================
+      // Very restrained: streak-flame glow and the macro-rings ambient presence
+      // breathe slightly with overall RMS. No waveform/equalizer visuals.
+      if (window.AUDIO_DATA) {
+        var flame = document.getElementById("flame-icon");
+        var ringsGlow = document.getElementById("rings-glow");
+        var fps = AUDIO_DATA.fps;
+        var frameCount = Math.min(AUDIO_DATA.totalFrames, Math.round(22.1 * fps));
+        for (var f = 0; f < frameCount; f++) {
+          (function (frame) {
+            tl.call(
+              function () {
+                var rms = frame.rms || 0;
+                flame.style.filter = "drop-shadow(0 0 " + (4 + rms * 10).toFixed(1) + "px rgba(224, 106, 82, 0.55))";
+                ringsGlow.style.opacity = (0.05 + rms * 0.05).toFixed(3);
+              },
+              [],
+              f / fps,
+            );
+          })(AUDIO_DATA.frames[f]);
+        }
+      }
+
+      window.__timelines["fitmasala"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

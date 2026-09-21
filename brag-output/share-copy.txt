@@ -1,0 +1,2 @@
+Introducing FitMasala: an Indian culinary AI and adaptive cut planner that reasons in katori and roti instead of grams, and doesn't drift when logging is a little inconsistent.
+Local-first — no backend, no account, just your phone.
