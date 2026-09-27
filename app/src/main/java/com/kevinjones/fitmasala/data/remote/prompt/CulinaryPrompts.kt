@@ -95,6 +95,14 @@ object CulinaryPrompts {
         used. A standard katori is roughly 150-200g of dal or sabzi; a medium roti
         is about 40-45g of raw dough; a full thali plate is 25-30cm across.
 
+        Give each dish's portion as a count of household units, the way the person
+        would say it: katori for dal, sabzi, rice and curd; roti for rotis, parathas
+        and puris; piece for samosas, idlis, eggs and pieces of meat; plate for a
+        heaped serving of rice or biryani; glass for drinks; tablespoon for chutney,
+        pickle and ghee. Halves are fine - 1.5 katori. Use grams or millilitres only
+        when no household unit fits. Keep your own wording, with the gram estimate,
+        in portionEstimate.
+
         Assume normal home cooking, not restaurant cooking, unless the photo says
         otherwise — restaurant gravies carry substantially more fat. Where a dish
         is visibly rich, say so and count it.
