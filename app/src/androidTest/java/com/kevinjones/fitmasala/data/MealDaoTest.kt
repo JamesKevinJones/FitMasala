@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -159,5 +160,45 @@ class MealDaoTest {
         assertEquals(2, dao.countPhotoDishesAt(at))
         assertEquals(0, dao.countPhotoDishesAt(at + 1_000))
         assertEquals(0, dao.countPhotoDishesAt(at - 1))
+    }
+
+    @Test
+    fun onlyPhotosWhoseEveryDishIsPastTheCutoffExpire() = runTest {
+        val cutoff = 20_100 * 86_400_000L
+        fun photoDish(name: String, day: Long, path: String?) =
+            meal(name, day, Macros(calories = 200.0)).copy(source = MealSource.PHOTO, photoPath = path)
+
+        // An old thali: two Dishes, one photo.
+        dao.insert(photoDish("Dal", 20_000, "/photos/old.jpg"))
+        dao.insert(photoDish("Roti", 20_000, "/photos/old.jpg"))
+        // Recent: kept.
+        dao.insert(photoDish("Poha", 20_150, "/photos/recent.jpg"))
+        // Old, but still referenced by a recent row: kept.
+        dao.insert(photoDish("Rice", 20_000, "/photos/shared.jpg"))
+        dao.insert(photoDish("Rice", 20_150, "/photos/shared.jpg"))
+        // Old, no photo at all.
+        dao.insert(photoDish("Chai", 20_000, null))
+        // Exactly at the cutoff is not before it.
+        dao.insert(photoDish("Upma", 20_100, "/photos/boundary.jpg"))
+
+        assertEquals(listOf("/photos/old.jpg"), dao.photoPathsOnlyEatenBefore(cutoff))
+    }
+
+    @Test
+    fun clearingAPhotoPathKeepsTheDishesAndTheirMacros() = runTest {
+        val macros = Macros(calories = 240.0, proteinG = 14.0, carbsG = 30.0, fatG = 8.0)
+        val dal = dao.insert(meal("Dal", 20_000, macros).copy(photoPath = "/photos/old.jpg"))
+        val roti = dao.insert(meal("Roti", 20_000, macros).copy(photoPath = "/photos/old.jpg"))
+        val keep = dao.insert(meal("Poha", 20_000, macros).copy(photoPath = "/photos/other.jpg"))
+
+        assertEquals(2, dao.clearPhotoPaths(listOf("/photos/old.jpg", "/photos/missing.jpg")))
+
+        val dalAfter = dao.byId(dal)!!
+        assertNull(dalAfter.photoPath)
+        assertEquals(macros, dalAfter.macros)
+        assertEquals(20_000L, dalAfter.dayEpoch)
+        assertNull(dao.byId(roti)!!.photoPath)
+        assertEquals("/photos/other.jpg", dao.byId(keep)!!.photoPath)
+        assertEquals(1, dao.observeDayTotals(20_000).first().mealCount)
     }
 }

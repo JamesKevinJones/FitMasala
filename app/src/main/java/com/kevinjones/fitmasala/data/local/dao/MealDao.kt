@@ -35,6 +35,28 @@ interface MealDao {
     @Query("SELECT COUNT(*) FROM logged_meals WHERE source = 'PHOTO' AND eatenAt = :eatenAt")
     suspend fun countPhotoDishesAt(eatenAt: Long): Int
 
+    /**
+     * Photos every referencing Dish of which was eaten before [cutoff]. Grouped
+     * rather than filtered row by row: one photo backs every Dish of its Meal,
+     * and a file still referenced by a recent row must not be deleted from under it.
+     */
+    @Query(
+        """
+        SELECT photoPath FROM logged_meals
+        WHERE photoPath IS NOT NULL
+        GROUP BY photoPath
+        HAVING MAX(eatenAt) < :cutoff
+        """,
+    )
+    suspend fun photoPathsOnlyEatenBefore(cutoff: Long): List<String>
+
+    /**
+     * Forgets pruned photos. Only the reference goes - the Dishes, their macros
+     * and their place in the history stay exactly as they were.
+     */
+    @Query("UPDATE logged_meals SET photoPath = NULL WHERE photoPath IN (:paths)")
+    suspend fun clearPhotoPaths(paths: List<String>): Int
+
     @Update
     suspend fun update(meal: LoggedMealEntity)
 
