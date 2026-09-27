@@ -41,6 +41,10 @@ sealed interface SnapMealState {
         val logging: Boolean = false,
         /** What the user has made of the model's dishes. Starts as the model's answer. */
         val dishes: List<ReviewDish> = estimate.items.map { ReviewDish(it) },
+        /** A typed dish is being estimated. */
+        val addingDish: Boolean = false,
+        /** Why the last typed dish could not be added, in words; null when there is nothing to say. */
+        val addError: String? = null,
     ) : SnapMealState {
 
         /** The dishes that will be logged: everything not removed. */
@@ -54,7 +58,20 @@ sealed interface SnapMealState {
         val total: Macros
             get() = kept.fold(Macros()) { sum, dish -> sum + dish.macros }
 
-        val canLog: Boolean get() = kept.isNotEmpty() && !logging
+        /** Not while a typed dish is still being estimated - it would be silently left out. */
+        val canLog: Boolean get() = kept.isNotEmpty() && !logging && !addingDish
+
+        /**
+         * Typed dishes join the end of the sheet, so every existing dish keeps its
+         * index. Their advisories join the sheet's, where they are seen before
+         * logging like any other.
+         */
+        fun withAddedDishes(items: List<PhotoItemDto>, newAdvisories: List<String>): Review = copy(
+            dishes = dishes + items.map { ReviewDish(it) },
+            advisories = advisories + newAdvisories,
+            addingDish = false,
+            addError = null,
+        )
 
         /**
          * One row per kept Dish, through the same mapper every photo log uses - so
@@ -161,6 +178,13 @@ private fun PortionUnit.step(): Double = when (this) {
     PortionUnit.GRAMS -> 10.0
     PortionUnit.MILLILITRES -> 50.0
     else -> 0.5
+}
+
+/** Why a typed dish added nothing - said so the next attempt can be better. */
+fun noDishMessage(description: String, containsFood: Boolean): String {
+    val quoted = "\"${description.trim()}\""
+    return if (containsFood) "No dish could be picked out of $quoted. Try one food at a time."
+    else "$quoted doesn't read as food. Name the dish and how much, like \"1 tsp ghee\"."
 }
 
 /** Sentence case, for chips and confirmations. */

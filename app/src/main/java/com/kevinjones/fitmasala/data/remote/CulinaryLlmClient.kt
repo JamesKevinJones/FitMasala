@@ -48,20 +48,36 @@ class CulinaryLlmClient @Inject constructor(
     suspend fun estimateFromPhoto(
         base64Jpeg: String,
         mealType: String? = null,
-    ): LlmResult<PhotoEstimateDto> = call(
-        system = CulinaryPrompts.VISION_SYSTEM,
-        message = AnthropicMessage.userImageAndText(
-            base64Jpeg = base64Jpeg,
-            text = CulinaryPrompts.photoRequest(mealType),
-        ),
-        schema = RecipeSchemas.PHOTO_ESTIMATE,
-        deserialize = { json.decodeFromString<PhotoEstimateDto>(it) },
-        validate = { dto -> validatePhoto(dto) },
+    ): LlmResult<PhotoEstimateDto> = estimate(
+        request = EstimateRequests.forPhoto(base64Jpeg, mealType),
+        noFood = "No food was found in the photo.",
     )
 
-    private fun validatePhoto(dto: PhotoEstimateDto): List<String> = buildList {
-        addAll(validateMacros(dto.totalMacros, "photo total"))
-        if (!dto.containsFood) add("No food was found in the photo.")
+    /**
+     * A dish typed onto a photo's review sheet ("1 tsp ghee"). Same schema, DTO
+     * and validation as [estimateFromPhoto], so a typed dish joins the sheet
+     * exactly like a photographed one.
+     */
+    suspend fun estimateFromText(
+        description: String,
+        mealType: String? = null,
+    ): LlmResult<PhotoEstimateDto> = estimate(
+        request = EstimateRequests.forText(description, mealType),
+        noFood = "\"${description.trim()}\" doesn't read as food.",
+    )
+
+    private suspend fun estimate(request: EstimateRequests.Request, noFood: String): LlmResult<PhotoEstimateDto> =
+        call(
+            system = request.system,
+            message = request.message,
+            schema = request.schema,
+            deserialize = { json.decodeFromString<PhotoEstimateDto>(it) },
+            validate = { dto -> validatePhoto(dto, noFood) },
+        )
+
+    private fun validatePhoto(dto: PhotoEstimateDto, noFood: String): List<String> = buildList {
+        addAll(validateMacros(dto.totalMacros, "estimate total"))
+        if (!dto.containsFood) add(noFood)
         // The schema can't bound numbers, so a zero or negative quantity (or an
         // unknown unit) can still arrive. Say so rather than quietly logging it
         // as "1 serving" the user can't step.
@@ -217,4 +233,29 @@ class CulinaryLlmClient @Inject constructor(
             )
         }
     }
+}
+
+/**
+ * How each kind of dish estimate is asked for, in one place so the photo and the
+ * typed versions cannot drift apart: different instructions and input, the same
+ * structured-output schema - and so the same DTO, validation and mapper.
+ */
+internal object EstimateRequests {
+
+    data class Request(val system: String, val message: AnthropicMessage, val schema: JsonObject)
+
+    fun forPhoto(base64Jpeg: String, mealType: String?) = Request(
+        system = CulinaryPrompts.VISION_SYSTEM,
+        message = AnthropicMessage.userImageAndText(
+            base64Jpeg = base64Jpeg,
+            text = CulinaryPrompts.photoRequest(mealType),
+        ),
+        schema = RecipeSchemas.PHOTO_ESTIMATE,
+    )
+
+    fun forText(description: String, mealType: String?) = Request(
+        system = CulinaryPrompts.TEXT_ESTIMATE_SYSTEM,
+        message = AnthropicMessage.userText(CulinaryPrompts.textRequest(description, mealType)),
+        schema = RecipeSchemas.PHOTO_ESTIMATE,
+    )
 }
