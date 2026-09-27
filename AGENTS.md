@@ -108,7 +108,8 @@ its plain-value inputs.
 the target is never derived from them directly. A *consistent* estimation bias
 lands entirely in the computed maintenance figure and cancels out of the deficit.
 The failure mode the system cannot absorb is inconsistent logging, which is why
-`AdaptiveTdee` discards days with fewer than two logged meals.
+`AdaptiveTdee` discards days with fewer than two Meals (eating occasions, not
+dishes - see `CONTEXT.md`).
 
 **Workouts join only at the dashboard.** `SessionDao` and `MealDao` share nothing
 but `dayEpoch`. Progressive overload lives entirely in
@@ -161,7 +162,8 @@ per decision. Read it before reversing something that looks arbitrary.
 - **Motion values come from `FmMotion`.** Press 90ms, surfaces 220ms, exits
   60-80% of enters. Celebration is reserved for milestones only.
 - **Gamification stays tied to the maths.** A streak day requires the same two
-  logged meals `AdaptiveTdee` needs. Never award XP for a bigger deficit.
+  Meals `AdaptiveTdee` needs (distinct meal types, not dishes - see
+  `CONTEXT.md`). Never award XP for a bigger deficit.
 - **The API key never leaves the device** except in the `x-api-key` header of the
   user's own LLM request. Never log it. Backups are disabled app-wide in the
   manifest for the same reason.
@@ -189,11 +191,33 @@ per decision. Read it before reversing something that looks arbitrary.
 ## Build phases
 
 1. ✅ Scaffold — Gradle, manifest, theme, Hilt application, empty package tree
-1b. ✅ Theme — StarMatch neo-brutalism ported to Compose
+1b. ✅ Theme — warm editorial M3 tonal system, light + dark (replaced the StarMatch neo-brutalist port; DECISIONS 2026-08-22)
 2. ✅ Data layer — Room entities, DAOs, database, DataStore prefs, DatabaseModule
 3. ✅ AI networking — Retrofit service, DTOs, the culinary system prompt
 4. ✅ UI foundation — theme, component set, app shell, dashboard feed — nav graph, dashboard, full theme
-5. ⬜ Feature screens — AI Chef chat, workout logging, camera capture
+5. 🟡 Feature screens — AI Chef chat and workout logging done; camera capture (Snap a meal) built, awaiting merge
 6. 🟡 Plan manager — engine + persistence done; UI and vision call pending
 
 Current position is always in `docs/STATE.md`.
+
+## Agent skills
+
+Matt Pocock's engineering skills are vendored as project skills in
+`.claude/skills/` (provenance and local changes in
+`.claude/skills/MATTPOCOCK-SOURCE.md`). Start a plan with `/grill-with-docs`.
+
+### Issue tracker
+
+GitHub Issues on `JamesKevinJones/FitMasala` (`gh` locally, GitHub MCP tools in
+cloud sessions). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default roles, each label string equal to its name. See
+`docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` glossary at the root (created lazily) plus
+`docs/DECISIONS.md` as the ADR log - there is no `docs/adr/`. See
+`docs/agents/domain.md`.
