@@ -99,7 +99,8 @@ class SnapMealViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.value = SnapMealState.Failed(null, "This photo couldn't be opened. Pick another one.")
+                val now = System.currentTimeMillis()
+                _state.value = photoUnreadable(null, now, mealTypeAt(now))
                 return@launch
             }
             photos.discard(pendingPath)
@@ -127,7 +128,7 @@ class SnapMealViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.value = SnapMealState.Failed(path, "This photo couldn't be read. Take it again.")
+                _state.value = photoUnreadable(path, eatenAt, mealType)
                 return@launch
             }
 
@@ -144,15 +145,82 @@ class SnapMealViewModel @Inject constructor(
                     estimate = result.value,
                     advisories = result.advisories,
                 )
-                is LlmResult.Failure -> SnapMealState.Failed(path, result.message)
+                is LlmResult.Failure -> failureFor(result, path, eatenAt, mealType)
             }
             if (_state.value is SnapMealState.Review) checkAlreadyLogged(eatenAt)
         }
     }
 
+    /**
+     * The same photo again, at the same time. The file on disk may already be the
+     * downscaled copy; preparing it again keeps it at that size.
+     */
+    fun retry() {
+        val failed = _state.value as? SnapMealState.Failed ?: return
+        val path = failed.photoPath ?: return retake()
+        estimate(path, failed.eatenAt, failed.mealType)
+    }
+
+    /** This photo is no use: drop it and go back to "Take photo / Choose from gallery". */
+    fun retake() {
+        photos.discard(pendingPath)
+        pendingPath = null
+        _state.value = SnapMealState.Capturing
+    }
+
+    /** From a failure, or from an estimate that found no dish: type the dish instead. */
+    fun logByHand() {
+        _state.value = when (val current = _state.value) {
+            is SnapMealState.Failed ->
+                SnapMealState.ManualEntry(current.photoPath, current.eatenAt, current.mealType)
+            is SnapMealState.Review ->
+                SnapMealState.ManualEntry(current.photoPath, current.eatenAt, current.mealType)
+            else -> return
+        }
+    }
+
     fun setMealType(mealType: MealType) {
-        val review = _state.value as? SnapMealState.Review ?: return
-        _state.value = review.withMealType(mealType)
+        when (val current = _state.value) {
+            is SnapMealState.Review -> _state.value = current.withMealType(mealType)
+            is SnapMealState.ManualEntry -> _state.value = current.copy(mealType = mealType)
+            else -> Unit
+        }
+    }
+
+    /**
+     * Logs the typed dish as MANUAL - not an Estimate - at the photo's time, with
+     * the photo kept for the audit trail. The screen only offers this once
+     * [ManualDishInput.problems] is empty; checked again here regardless.
+     */
+    fun saveManual(input: ManualDishInput) {
+        val entry = _state.value as? SnapMealState.ManualEntry ?: return
+        val macros = input.macros
+        if (entry.saving || input.problems().isNotEmpty() || macros == null) return
+        _state.value = entry.copy(saving = true, saveError = null)
+        viewModelScope.launch {
+            try {
+                meals.logManual(
+                    name = input.name.trim(),
+                    mealType = entry.mealType,
+                    portionQuantity = input.quantity,
+                    portionUnit = input.unit,
+                    calories = macros.calories,
+                    proteinG = macros.proteinG,
+                    carbsG = macros.carbsG,
+                    fatG = macros.fatG,
+                    eatenAt = entry.eatenAt,
+                    photoPath = entry.photoPath,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                val current = _state.value as? SnapMealState.ManualEntry ?: return@launch
+                _state.value = current.copy(saving = false, saveError = SAVE_FAILED)
+                return@launch
+            }
+            pendingPath = null
+            _state.value = SnapMealState.Logged(loggedSummary(entry.mealType, 1, macros.calories))
+        }
     }
 
     /** The user moved the meal in time on the sheet. */
@@ -219,14 +287,16 @@ class SnapMealViewModel @Inject constructor(
     fun logMeal() {
         val review = _state.value as? SnapMealState.Review ?: return
         if (!review.canLog) return
-        _state.value = review.copy(logging = true)
+        _state.value = review.copy(logging = true, logError = null)
         viewModelScope.launch {
             try {
                 meals.logPhotoMeal(review.toLoggedDishes())
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _state.value = SnapMealState.Failed(review.photoPath, "This meal couldn't be saved. Try again.")
+                // Back to the same sheet, edits intact - a failed save must not cost the review.
+                val current = _state.value as? SnapMealState.Review ?: return@launch
+                _state.value = current.copy(logging = false, logError = SAVE_FAILED)
                 return@launch
             }
             // The rows now reference the photo; it is no longer ours to delete.
@@ -252,5 +322,6 @@ class SnapMealViewModel @Inject constructor(
 
     private companion object {
         const val KEY_PENDING_PATH = "pendingPhotoPath"
+        const val SAVE_FAILED = "This meal couldn't be saved. Try again."
     }
 }

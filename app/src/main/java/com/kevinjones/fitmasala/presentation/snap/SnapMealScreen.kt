@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -46,15 +48,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kevinjones.fitmasala.core.ui.components.DefaultIndianUnits
 import com.kevinjones.fitmasala.core.ui.components.EstimateBadge
 import com.kevinjones.fitmasala.core.ui.components.FmAdvisory
 import com.kevinjones.fitmasala.core.ui.components.FmButton
 import com.kevinjones.fitmasala.core.ui.components.FmButtonGhost
 import com.kevinjones.fitmasala.core.ui.components.FmButtonTonal
 import com.kevinjones.fitmasala.core.ui.components.FmCard
+import com.kevinjones.fitmasala.core.ui.components.FmChip
 import com.kevinjones.fitmasala.core.ui.components.FmEmptyState
 import com.kevinjones.fitmasala.core.ui.components.FmErrorState
 import com.kevinjones.fitmasala.core.ui.components.FmListItem
@@ -66,6 +73,7 @@ import com.kevinjones.fitmasala.core.ui.components.FmStatRow
 import com.kevinjones.fitmasala.core.ui.components.FmStepper
 import com.kevinjones.fitmasala.core.ui.components.FmTextField
 import com.kevinjones.fitmasala.core.ui.components.SectionHeader
+import com.kevinjones.fitmasala.core.ui.components.displayName
 import com.kevinjones.fitmasala.core.ui.theme.Fm
 import com.kevinjones.fitmasala.core.ui.theme.MaxContentWidth
 import com.kevinjones.fitmasala.core.ui.theme.fm
@@ -73,6 +81,7 @@ import com.kevinjones.fitmasala.core.util.combineDateAndTime
 import com.kevinjones.fitmasala.core.util.pickerDateOf
 import com.kevinjones.fitmasala.data.local.entity.Macros
 import com.kevinjones.fitmasala.data.local.entity.MealType
+import com.kevinjones.fitmasala.data.local.entity.PortionUnit
 import com.kevinjones.fitmasala.data.remote.dto.confidenceToScore
 import java.time.Instant
 import java.time.ZoneId
@@ -91,6 +100,7 @@ fun SnapMealScreen(
     contentPadding: PaddingValues,
     onClose: () -> Unit,
     onLogged: (summary: String) -> Unit,
+    onOpenSettings: () -> Unit,
     viewModel: SnapMealViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -196,15 +206,33 @@ fun SnapMealScreen(
                 onChangeTime = { pickingDate = true },
                 onLog = viewModel::logMeal,
                 onDiscard = viewModel::discard,
+                onRetake = viewModel::retake,
+                onLogByHand = viewModel::logByHand,
             )
 
             is SnapMealState.Failed -> item {
-                FmErrorState(
-                    title = "This meal couldn't be estimated",
-                    body = current.message,
+                FailedCard(
+                    failed = current,
                     modifier = itemModifier,
-                    onRetry = viewModel::discard,
-                    retryLabel = "Back",
+                    onAction = { action ->
+                        when (action) {
+                            FailureAction.RETRY -> viewModel.retry()
+                            FailureAction.RETAKE -> viewModel.retake()
+                            FailureAction.OPEN_SETTINGS -> onOpenSettings()
+                            FailureAction.LOG_BY_HAND -> viewModel.logByHand()
+                        }
+                    },
+                    onDiscard = viewModel::discard,
+                )
+            }
+
+            is SnapMealState.ManualEntry -> item {
+                ManualDishForm(
+                    entry = current,
+                    modifier = itemModifier,
+                    onMealType = viewModel::setMealType,
+                    onSave = viewModel::saveManual,
+                    onDiscard = viewModel::discard,
                 )
             }
 
@@ -264,6 +292,8 @@ private fun LazyListScope.reviewItems(
     onChangeTime: () -> Unit,
     onLog: () -> Unit,
     onDiscard: () -> Unit,
+    onRetake: () -> Unit,
+    onLogByHand: () -> Unit,
 ) {
     if (review.alreadyLogged) {
         item { FmAdvisory(alreadyLoggedMessage(review.eatenAt), itemModifier) }
@@ -296,8 +326,15 @@ private fun LazyListScope.reviewItems(
             FmEmptyState(
                 icon = Icons.Outlined.RamenDining,
                 title = "No dishes found",
-                body = "Nothing in this photo could be estimated. Type what you ate below, or discard it.",
+                body = "Nothing in this photo could be estimated. Try another photo, type what " +
+                    "you ate below, or enter the dish and its numbers yourself.",
                 modifier = itemModifier,
+                action = {
+                    Column(verticalArrangement = Arrangement.spacedBy(Fm.snug)) {
+                        FmButtonTonal("Retake photo", onClick = onRetake, modifier = Modifier.fillMaxWidth())
+                        FmButtonTonal("Log by hand", onClick = onLogByHand, modifier = Modifier.fillMaxWidth())
+                    }
+                },
             )
         }
     } else {
@@ -338,6 +375,9 @@ private fun LazyListScope.reviewItems(
 
     item {
         Column(itemModifier, verticalArrangement = Arrangement.spacedBy(Fm.snug)) {
+            if (review.logError != null) {
+                Text(review.logError, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
             FmButton(
                 text = if (review.logging) "Logging…" else "Log meal",
                 onClick = onLog,
@@ -450,6 +490,176 @@ private fun AddDishRow(
         }
         if (error != null) {
             Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+    }
+}
+
+/**
+ * Why the estimate failed, and the ways forward that fit that reason - the first
+ * is the likely fix, so it alone gets the primary button. The photo is kept
+ * until the flow ends, so "Try again" and "Log by hand" don't need a new one.
+ */
+@Composable
+private fun FailedCard(
+    failed: SnapMealState.Failed,
+    modifier: Modifier,
+    onAction: (FailureAction) -> Unit,
+    onDiscard: () -> Unit,
+) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(Fm.snug)) {
+        FmErrorState(title = "This meal couldn't be estimated", body = failed.message)
+        failed.actions.forEachIndexed { index, action ->
+            if (index == 0) {
+                FmButton(action.label, onClick = { onAction(action) }, modifier = Modifier.fillMaxWidth())
+            } else {
+                FmButtonTonal(action.label, onClick = { onAction(action) }, modifier = Modifier.fillMaxWidth())
+            }
+        }
+        FmButtonGhost("Discard", onClick = onDiscard, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+/**
+ * One dish and its numbers, typed. Portion in Indian units first, grams last;
+ * macros optional. Logged as a manual entry, so it carries no estimate badge -
+ * and the Atwater check still warns about a mistyped digit before it is saved.
+ */
+@Composable
+private fun ManualDishForm(
+    entry: SnapMealState.ManualEntry,
+    modifier: Modifier,
+    onMealType: (MealType) -> Unit,
+    onSave: (ManualDishInput) -> Unit,
+    onDiscard: () -> Unit,
+) {
+    var name by rememberSaveable { mutableStateOf("") }
+    var quantity by rememberSaveable { mutableStateOf(1.0) }
+    var unit by rememberSaveable { mutableStateOf(PortionUnit.KATORI) }
+    var calories by rememberSaveable { mutableStateOf("") }
+    var protein by rememberSaveable { mutableStateOf("") }
+    var carbs by rememberSaveable { mutableStateOf("") }
+    var fat by rememberSaveable { mutableStateOf("") }
+    // Problems are shown once a save has been tried, not while the form is still empty.
+    var attempted by rememberSaveable { mutableStateOf(false) }
+
+    val input = ManualDishInput(name, quantity, unit, calories, protein, carbs, fat)
+    val problems = input.problems()
+    val advisory = input.advisory()
+    val enabled = !entry.saving
+    val numberKeyboard = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next)
+
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(Fm.gap)) {
+        Column(verticalArrangement = Arrangement.spacedBy(Fm.hair)) {
+            Text("Log by hand", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "From a label, a recipe or your own judgement. Logged at the time below" +
+                    if (entry.photoPath != null) ", with the photo kept." else ".",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.fm.textSecondary,
+            )
+        }
+
+        FmListItem(overline = "Eaten", headline = eatenAtLabel(entry.eatenAt))
+
+        Column(verticalArrangement = Arrangement.spacedBy(Fm.tight)) {
+            SectionHeader("Which meal was this?")
+            FmSegmentedButtons(
+                options = MealType.entries,
+                selected = entry.mealType,
+                onSelect = onMealType,
+                label = { it.label() },
+            )
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(Fm.tight)) {
+            SectionHeader("Dish")
+            FmTextField(
+                value = name,
+                onValueChange = { name = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = "Rajma chawal",
+                enabled = enabled,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
+            )
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(Fm.tight)) {
+            SectionHeader("Portion")
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(Fm.tight)) {
+                items(DefaultIndianUnits, key = { it.name }) { candidate ->
+                    FmChip(
+                        text = candidate.displayName(),
+                        selected = candidate == unit,
+                        onClick = {
+                            if (enabled) {
+                                val switched = input.withUnit(candidate)
+                                unit = switched.unit
+                                quantity = switched.quantity
+                            }
+                        },
+                    )
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                FmStepper(
+                    value = quantity.trimmed(),
+                    onIncrement = { if (enabled) quantity = input.steppedUp().quantity },
+                    onDecrement = { if (enabled) quantity = input.steppedDown().quantity },
+                    incrementDescription = "Increase portion",
+                    decrementDescription = "Decrease portion",
+                    decrementEnabled = enabled && input.canStepDown,
+                )
+                Text(
+                    text = input.portionLabel.substringAfter(' '),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.fm.textSecondary,
+                    modifier = Modifier.padding(start = Fm.tight),
+                )
+            }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(Fm.tight)) {
+            SectionHeader("Calories for this portion")
+            FmTextField(
+                value = calories,
+                onValueChange = { calories = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = "kcal",
+                enabled = enabled,
+                keyboardOptions = numberKeyboard,
+            )
+            SectionHeader("Macros, if you know them")
+            Row(horizontalArrangement = Arrangement.spacedBy(Fm.tight)) {
+                FmTextField(protein, { protein = it }, Modifier.weight(1f), placeholder = "Protein g", enabled = enabled, keyboardOptions = numberKeyboard)
+                FmTextField(carbs, { carbs = it }, Modifier.weight(1f), placeholder = "Carbs g", enabled = enabled, keyboardOptions = numberKeyboard)
+                FmTextField(
+                    fat, { fat = it }, Modifier.weight(1f), placeholder = "Fat g", enabled = enabled,
+                    keyboardOptions = numberKeyboard.copy(imeAction = ImeAction.Done),
+                )
+            }
+        }
+
+        if (advisory != null) FmAdvisory(advisory)
+        if (attempted) {
+            problems.forEach { problem ->
+                Text(problem, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+        }
+        if (entry.saveError != null) {
+            Text(entry.saveError, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(Fm.snug)) {
+            FmButton(
+                text = if (entry.saving) "Logging…" else "Log dish",
+                onClick = {
+                    attempted = true
+                    if (problems.isEmpty()) onSave(input)
+                },
+                enabled = enabled,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            FmButtonGhost("Discard", onClick = onDiscard, modifier = Modifier.fillMaxWidth())
         }
     }
 }

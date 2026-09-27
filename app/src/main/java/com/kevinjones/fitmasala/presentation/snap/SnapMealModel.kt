@@ -5,6 +5,7 @@ import com.kevinjones.fitmasala.data.local.entity.LoggedMealEntity
 import com.kevinjones.fitmasala.data.local.entity.Macros
 import com.kevinjones.fitmasala.data.local.entity.MealType
 import com.kevinjones.fitmasala.data.local.entity.PortionUnit
+import com.kevinjones.fitmasala.data.remote.LlmResult
 import com.kevinjones.fitmasala.data.remote.dto.PhotoEstimateDto
 import com.kevinjones.fitmasala.data.remote.dto.PhotoItemDto
 import com.kevinjones.fitmasala.data.remote.structuredPortion
@@ -54,6 +55,8 @@ sealed interface SnapMealState {
         val mealTypeChosen: Boolean = false,
         /** A photo meal is already logged at exactly [eatenAt] - the same photo, most likely. */
         val alreadyLogged: Boolean = false,
+        /** The last "Log meal" failed to save; the sheet and its edits are kept. */
+        val logError: String? = null,
     ) : SnapMealState {
 
         /** The dishes that will be logged: everything not removed. */
@@ -115,15 +118,34 @@ sealed interface SnapMealState {
             else copy(dishes = dishes.mapIndexed { i, dish -> if (i == index) change(dish) else dish })
 
         /** "Lunch logged · 3 dishes · 480 kcal" - the confirmation after logging. */
-        fun summary(): String {
-            val count = kept.size
-            return "${mealType.label()} logged · $count ${if (count == 1) "dish" else "dishes"} · " +
-                "${total.calories.roundToLong()} kcal"
-        }
+        fun summary(): String = loggedSummary(mealType, kept.size, total.calories)
     }
 
-    /** The estimate could not be made. Carries the reason in words the user can act on. */
-    data class Failed(val photoPath: String?, val message: String) : SnapMealState
+    /**
+     * The estimate could not be made. Carries the reason in words, the ways
+     * forward that make sense for *this* reason, and everything needed to try
+     * again without retaking the photo. Nothing is ever logged from here.
+     */
+    data class Failed(
+        val photoPath: String?,
+        val message: String,
+        val eatenAt: Long,
+        val mealType: MealType,
+        val actions: List<FailureAction>,
+    ) : SnapMealState
+
+    /**
+     * "Log by hand": one dish typed with its numbers - from a label, a recipe, or
+     * the user's own judgement - when the estimate can't be had. Keeps the photo
+     * path so the audit trail survives.
+     */
+    data class ManualEntry(
+        val photoPath: String?,
+        val eatenAt: Long,
+        val mealType: MealType,
+        val saving: Boolean = false,
+        val saveError: String? = null,
+    ) : SnapMealState
 
     /** Written. The screen hands [summary] to the snackbar and closes. */
     data class Logged(val summary: String) : SnapMealState
@@ -201,6 +223,12 @@ data class ReviewDish(
     }
 }
 
+private fun PortionUnit.startingQuantity(): Double = when (this) {
+    PortionUnit.GRAMS -> 100.0
+    PortionUnit.MILLILITRES -> 200.0
+    else -> 1.0
+}
+
 private fun PortionUnit.step(): Double = when (this) {
     PortionUnit.GRAMS -> 10.0
     PortionUnit.MILLILITRES -> 50.0
@@ -222,6 +250,143 @@ fun noDishMessage(description: String, containsFood: Boolean): String {
     val quoted = "\"${description.trim()}\""
     return if (containsFood) "No dish could be picked out of $quoted. Try one food at a time."
     else "$quoted doesn't read as food. Name the dish and how much, like \"1 tsp ghee\"."
+}
+
+/** "Lunch logged · 3 dishes · 480 kcal". */
+fun loggedSummary(mealType: MealType, dishes: Int, calories: Double): String =
+    "${mealType.label()} logged · $dishes ${if (dishes == 1) "dish" else "dishes"} · ${calories.roundToLong()} kcal"
+
+/** A way forward from a failed estimate. Which ones apply depends on why it failed. */
+enum class FailureAction(val label: String) {
+    /** Same photo, same time - for failures that may not happen twice. */
+    RETRY("Try again"),
+    /** A different photo - when this one can't be read or won't be estimated. */
+    RETAKE("Retake photo"),
+    /** No key, or a rejected one. */
+    OPEN_SETTINGS("Open Settings"),
+    /** Always available: the meal still gets logged, just without an estimate. */
+    LOG_BY_HAND("Log by hand"),
+}
+
+/**
+ * Every way an estimate call can fail, as a sentence and the actions that make
+ * sense for it. Never "something went wrong": the app knows which thing did, and
+ * a wrong key needs Settings where a dropped connection needs a retry.
+ */
+fun failureFor(
+    failure: LlmResult.Failure,
+    photoPath: String?,
+    eatenAt: Long,
+    mealType: MealType,
+): SnapMealState.Failed {
+    val (message, actions) = when (failure) {
+        LlmResult.Failure.MissingApiKey ->
+            "Estimating a photo needs your API key. Add it in Settings, then try again." to
+                listOf(FailureAction.OPEN_SETTINGS, FailureAction.RETRY)
+        is LlmResult.Failure.Unauthorized ->
+            "Your API key was turned down. Check it in Settings, then try again." to
+                listOf(FailureAction.OPEN_SETTINGS, FailureAction.RETRY)
+        is LlmResult.Failure.RateLimited -> {
+            val wait = failure.retryAfterSeconds?.let { " Try again in about $it seconds." } ?: " Try again in a moment."
+            "Too many requests right now.$wait" to listOf(FailureAction.RETRY)
+        }
+        // Retrying the same photo will get the same answer; a different one might not.
+        is LlmResult.Failure.Refused ->
+            "The model declined to estimate this photo. A different photo may work." to
+                listOf(FailureAction.RETAKE)
+        LlmResult.Failure.Truncated ->
+            "The estimate was cut off before it finished." to listOf(FailureAction.RETRY)
+        is LlmResult.Failure.Unparseable ->
+            "The estimate came back in a form the app couldn't read." to listOf(FailureAction.RETRY)
+        is LlmResult.Failure.Network ->
+            "Couldn't reach the estimate service. Check your connection." to listOf(FailureAction.RETRY)
+        is LlmResult.Failure.Http ->
+            "The estimate service returned an error (${failure.code})." to listOf(FailureAction.RETRY)
+    }
+    return SnapMealState.Failed(photoPath, message, eatenAt, mealType, actions + FailureAction.LOG_BY_HAND)
+}
+
+/** The photo itself couldn't be opened or decoded - a different one is the fix. */
+fun photoUnreadable(photoPath: String?, eatenAt: Long, mealType: MealType): SnapMealState.Failed =
+    SnapMealState.Failed(
+        photoPath = photoPath,
+        message = "This photo couldn't be read. Take or pick another one.",
+        eatenAt = eatenAt,
+        mealType = mealType,
+        actions = listOf(FailureAction.RETAKE, FailureAction.LOG_BY_HAND),
+    )
+
+/**
+ * The "Log by hand" form as typed: numbers still as text, so the rules for what
+ * counts as a number live here, where they can be tested, and not in the UI.
+ * Blank macros mean 0 - a label with only calories is still worth logging.
+ */
+data class ManualDishInput(
+    val name: String = "",
+    val quantity: Double = 1.0,
+    val unit: PortionUnit = PortionUnit.KATORI,
+    val calories: String = "",
+    val protein: String = "",
+    val carbs: String = "",
+    val fat: String = "",
+) {
+    /** Same steps as the review sheet: half a katori, 10 g, 50 ml. */
+    val step: Double get() = unit.step()
+    val canStepDown: Boolean get() = quantity - step >= step - 1e-9
+    fun steppedUp(): ManualDishInput = copy(quantity = quantity + step)
+    fun steppedDown(): ManualDishInput = if (canStepDown) copy(quantity = quantity - step) else this
+
+    /**
+     * A new unit starts from a quantity that means something in it: "1.5 katori"
+     * switched to grams is not 1.5 g.
+     */
+    fun withUnit(newUnit: PortionUnit): ManualDishInput =
+        if (newUnit == unit) this else copy(unit = newUnit, quantity = newUnit.startingQuantity())
+
+    val portionLabel: String get() = portionLabel(quantity, unit)
+
+    private fun parse(text: String): Double? =
+        text.trim().replace(',', '.').takeIf { it.isNotEmpty() }?.toDoubleOrNull()
+
+    private fun macroOrZero(text: String): Double? = if (text.isBlank()) 0.0 else parse(text)
+
+    val macros: Macros?
+        get() {
+            val kcal = parse(calories) ?: return null
+            return Macros(
+                calories = kcal,
+                proteinG = macroOrZero(protein) ?: return null,
+                carbsG = macroOrZero(carbs) ?: return null,
+                fatG = macroOrZero(fat) ?: return null,
+            )
+        }
+
+    /** What stops the dish being logged, in words. Empty means it can be logged. */
+    fun problems(): List<String> = buildList {
+        if (name.isBlank()) add("Give the dish a name.")
+        if (quantity <= 0) add("The portion has to be more than zero.")
+        val kcal = parse(calories)
+        when {
+            kcal == null -> add("Enter the calories as a number.")
+            kcal <= 0 -> add("Calories have to be more than zero.")
+        }
+        listOf("Protein" to protein, "Carbs" to carbs, "Fat" to fat).forEach { (label, text) ->
+            val value = macroOrZero(text)
+            if (value == null || value < 0) add("$label has to be a number of grams, or left blank.")
+        }
+    }
+
+    /**
+     * The same Atwater cross-check the model's numbers get: a warning, not a
+     * block - a mistyped digit is caught, a genuine label is not refused. Only
+     * when macros were entered; calories alone have nothing to disagree with.
+     */
+    fun advisory(): String? {
+        val m = macros ?: return null
+        if (m.proteinG + m.carbsG + m.fatG <= 0 || m.isInternallyConsistent()) return null
+        return "These macros add up to ${m.derivedCalories.roundToLong()} kcal, not ${m.calories.roundToLong()}. " +
+            "Check the numbers - or log it anyway if the label says so."
+    }
 }
 
 /** Sentence case, for chips and confirmations. */
