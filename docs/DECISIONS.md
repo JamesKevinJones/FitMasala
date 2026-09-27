@@ -763,3 +763,48 @@ schema for photo and text estimates keeps a single schema-DTO pair in lockstep.
 Photos are the audit trail for when the scale and the log disagree; that value
 fades once a period has left the weight trend, while the storage (~0.3 GB a
 year, never backed up) does not.
+
+---
+
+## 2026-09-27 — Gemini as an optional second estimator, never a fallback
+
+**Decision:** Claude (`claude-opus-5`) stays the default for meal estimates.
+Google Gemini is added as a second provider the user chooses in Settings, with
+its own key. It runs through the same prompts, the same photo/text estimate
+schema, the same validation and advisories, and the same review sheet. The key
+travels only in Gemini's `x-goog-api-key` header, never in a URL, and there is
+no backend in between. The app never falls back from one provider to another on
+its own, and every logged Dish records which model estimated it. The default
+changes only if a side-by-side run on Kevin's own meals, with known numbers,
+shows Gemini's median calorie error no worse than Claude's plus 5%. This
+supersedes the 2026-08-19 single-valued `LlmProvider` entry once Gemini lands.
+
+**Rejected** (from a Cal AI-style proposal):
+
+- **A backend holding the key.** It exists to hide a key shipped inside a
+  published APK. Here the key is the user's own, pasted at runtime, and a
+  server would add a hop for every meal photo.
+- **Groq / OpenRouter free endpoints as fallbacks.** Free endpoints churn, and
+  OpenRouter adds another party that sees the photos.
+- **Their schema.** Its grams-first portions, a model-stated total and one
+  overall confidence contradict Indian-units-first, sum-of-Dishes and per-Dish
+  confidence.
+- **CameraX.** The system camera app was chosen in #14.
+
+Barcode lookup against Open Food Facts is a separate, later feature. It would
+log label values, not Estimates.
+
+**Why:**
+
+- **Consistency beats the better model.** `AdaptiveTdee` cancels a
+  *consistent* estimation bias. Two models alternating on failure make the bias
+  inconsistent, the one error the plan cannot absorb. So a provider change is a
+  deliberate, recorded event, and downtime is handled by the retry and
+  log-by-hand paths from #9 instead.
+- **Cost against privacy.** Cost is the real case for Gemini: Opus 5 at high
+  effort is roughly $0.05-0.10 per photo. But on Gemini's free tier (outside
+  the EEA, Switzerland and the UK), Google may use inputs to improve its
+  products and human reviewers may read them. That is why the choice is
+  explicit in Settings rather than silent.
+- **Quality is unknown.** No benchmark says which model portions Indian home
+  food better, so measure it on real meals before moving the default.
