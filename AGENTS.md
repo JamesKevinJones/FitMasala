@@ -197,3 +197,25 @@ per decision. Read it before reversing something that looks arbitrary.
 6. 🟡 Plan manager — engine + persistence done; UI and vision call pending
 
 Current position is always in `docs/STATE.md`.
+
+## Agent skills
+
+Matt Pocock's engineering skills are vendored as project skills in
+`.claude/skills/` (provenance and local changes in
+`.claude/skills/MATTPOCOCK-SOURCE.md`). Start a plan with `/grill-with-docs`.
+
+### Issue tracker
+
+GitHub Issues on `JamesKevinJones/FitMasala` (`gh` locally, GitHub MCP tools in
+cloud sessions). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default roles, each label string equal to its name. See
+`docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` glossary at the root (created lazily) plus
+`docs/DECISIONS.md` as the ADR log - there is no `docs/adr/`. See
+`docs/agents/domain.md`.

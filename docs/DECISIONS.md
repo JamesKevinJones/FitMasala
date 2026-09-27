@@ -706,3 +706,21 @@ three kilos of real movement into a ten-kilo axis, so the line read as FLAT whil
 the card above it said "0.6 kg per week". The chart was contradicting its own
 headline. Now the scale follows the data, and a goal outside the visible range
 gets an honest "(below)" in the legend instead of distorting everything.
+
+---
+
+## 2026-09-27 — Matt Pocock's skills vendored, writing to this decision log
+
+**Decision:** The 24 skills from the `mattpocock-skills` plugin (all but
+`code-review`) are committed under `.claude/skills/`, configured for GitHub
+Issues, default triage labels, and a single-context domain layout whose ADR
+log is this file.
+
+**Why:** The plugin was not available in cloud sessions, so `/grill-with-docs`
+and `/setup-matt-pocock-skills` did not exist there. Project skills load in any
+session that clones the repo, and the upstream author intends them to be
+adapted. `code-review` was left out because it would shadow the built-in
+`/code-review`. The skills default to numbered files in `docs/adr/`; that would
+have split the project's reasoning across two places, so `domain-modeling` was
+edited to append here in the existing dated format instead. Details and the
+upstream commit are in `.claude/skills/MATTPOCOCK-SOURCE.md`.
