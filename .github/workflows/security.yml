@@ -26,6 +26,11 @@ jobs:
       - uses: anthropics/claude-code-security-review@main
         with:
           comment-pr: true
+          # Scan every push, not just the first run on a PR. By default the
+          # action caches a "has run" marker per PR - even when that first run
+          # fails (e.g. no API key) - and every later run then skips the scan
+          # while still reporting success.
+          run-every-commit: true
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
           # Pinned explicitly. Left blank, this action's own default falls
           # back to a dated 2025 snapshot (claude-opus-4-1-20250805) rather
