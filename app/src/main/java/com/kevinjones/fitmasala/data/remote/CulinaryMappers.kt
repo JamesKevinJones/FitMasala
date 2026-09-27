@@ -12,6 +12,7 @@ import com.kevinjones.fitmasala.data.local.entity.RecipeIngredientEntity
 import com.kevinjones.fitmasala.data.local.entity.Region
 import com.kevinjones.fitmasala.data.remote.dto.MacrosDto
 import com.kevinjones.fitmasala.data.remote.dto.PhotoEstimateDto
+import com.kevinjones.fitmasala.data.remote.dto.PhotoItemDto
 import com.kevinjones.fitmasala.data.remote.dto.RecipeDto
 import com.kevinjones.fitmasala.data.remote.dto.confidenceToScore
 import com.kevinjones.fitmasala.data.photo.PreparedImage
@@ -106,6 +107,7 @@ fun PhotoEstimateDto.toLoggedMeals(
     photoPath: String?,
     eatenAt: Long = System.currentTimeMillis(),
 ): List<LoggedMealEntity> = items.map { item ->
+    val (quantity, unit) = item.structuredPortion() ?: (1.0 to PortionUnit.SERVING)
     LoggedMealEntity(
         name = item.name,
         nameLocal = item.nameLocal,
@@ -113,6 +115,9 @@ fun PhotoEstimateDto.toLoggedMeals(
         mealType = mealType,
         eatenAt = eatenAt,
         dayEpoch = DateKeys.dayEpochOf(eatenAt),
+        portionQuantity = quantity,
+        portionUnit = unit,
+        // The model's own wording stays visible beside any later correction.
         portionNote = item.portionEstimate,
         macros = item.macros.toMacros(),
         isAiEstimate = true,
@@ -121,6 +126,18 @@ fun PhotoEstimateDto.toLoggedMeals(
         photoPath = photoPath,
         notes = item.uncertaintyNote,
     )
+}
+
+/**
+ * The dish's portion as a quantity the stepper can scale, or null when it can't
+ * be trusted to scale: an unrecognised unit, or a quantity that isn't a positive
+ * number (the schema can't bound numbers, so zero or negative can still arrive).
+ * Callers fall back to one SERVING - the macros still describe what was eaten,
+ * they just can't be stepped.
+ */
+internal fun PhotoItemDto.structuredPortion(): Pair<Double, PortionUnit>? {
+    val unit = PortionUnit.entries.firstOrNull { it.name.equals(portionUnit.trim(), ignoreCase = true) }
+    return if (unit != null && portionQuantity.isFinite() && portionQuantity > 0) portionQuantity to unit else null
 }
 
 /** Base64 for the image content block. NO_WRAP equivalent - a wrapped payload is rejected. */

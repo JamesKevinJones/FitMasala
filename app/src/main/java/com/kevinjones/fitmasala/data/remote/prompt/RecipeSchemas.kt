@@ -1,5 +1,6 @@
 package com.kevinjones.fitmasala.data.remote.prompt
 
+import com.kevinjones.fitmasala.data.local.entity.PortionUnit
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
@@ -38,6 +39,25 @@ object RecipeSchemas {
     private fun string(description: String) = buildJsonObject {
         put("type", "string")
         put("description", description)
+    }
+
+    /**
+     * Built from [PortionUnit] itself, so a unit added to the enum reaches the
+     * schema without a second edit. SERVING is left out on purpose: it is the
+     * app's fallback for "no real unit", and offering it would let the model skip
+     * the one judgement - katori or roti or piece - the stepper depends on.
+     *
+     * Structured outputs support `enum` but not numeric bounds, so
+     * portionQuantity's "greater than 0" lives in the description and is
+     * enforced after parsing.
+     */
+    internal val PHOTO_PORTION_UNITS: List<String> =
+        PortionUnit.entries.filter { it != PortionUnit.SERVING }.map { it.name }
+
+    private fun portionUnit() = buildJsonObject {
+        put("type", "string")
+        put("description", "Household unit the portion was judged in; GRAMS or MILLILITRES only when nothing else fits")
+        putJsonArray("enum") { PHOTO_PORTION_UNITS.forEach { add(it) } }
     }
 
     private fun macrosObject(description: String) = buildJsonObject {
@@ -142,6 +162,11 @@ object RecipeSchemas {
                         put("nameLocal", stringOrNull())
                         put("region", string("Region enum name, or OTHER"))
                         put("portionEstimate", string("e.g. '1 katori (~180g)', '2 rotis'"))
+                        put(
+                            "portionQuantity",
+                            number("How many portionUnit were eaten, greater than 0, e.g. 2 for two rotis, 1.5 katori"),
+                        )
+                        put("portionUnit", portionUnit())
                         put("portionBasis", string("What the size was judged against, e.g. 'katori rim vs plate diameter'"))
                         put("macros", macrosObject("For the portion visible, not per 100g"))
                         put(
@@ -152,6 +177,7 @@ object RecipeSchemas {
                     }
                     putJsonArray("required") {
                         add("name"); add("nameLocal"); add("region"); add("portionEstimate")
+                        add("portionQuantity"); add("portionUnit")
                         add("portionBasis"); add("macros"); add("confidence"); add("uncertaintyNote")
                     }
                     put("additionalProperties", false)

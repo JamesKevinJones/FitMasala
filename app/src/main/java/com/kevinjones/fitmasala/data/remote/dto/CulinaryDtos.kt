@@ -63,6 +63,10 @@ data class PhotoItemDto(
     val nameLocal: String? = null,
     val region: String,
     val portionEstimate: String,
+    /** Must be > 0; the schema cannot enforce that, so the mapper and validation do. */
+    val portionQuantity: Double,
+    /** A [com.kevinjones.fitmasala.data.local.entity.PortionUnit] name. */
+    val portionUnit: String,
     val portionBasis: String,
     val macros: MacrosDto,
     val confidence: String,

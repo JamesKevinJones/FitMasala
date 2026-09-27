@@ -3,15 +3,22 @@ package com.kevinjones.fitmasala.remote
 import com.kevinjones.fitmasala.data.local.entity.CookingMethod
 import com.kevinjones.fitmasala.data.local.entity.MealSource
 import com.kevinjones.fitmasala.data.local.entity.MealType
+import com.kevinjones.fitmasala.data.local.entity.PortionUnit
 import com.kevinjones.fitmasala.data.local.entity.Region
 import com.kevinjones.fitmasala.data.remote.dto.AnthropicResponse
+import com.kevinjones.fitmasala.data.remote.dto.PhotoEstimateDto
 import com.kevinjones.fitmasala.data.remote.dto.RecipeDto
 import com.kevinjones.fitmasala.data.remote.dto.ResponseContentBlock
+import com.kevinjones.fitmasala.data.remote.prompt.RecipeSchemas
 import com.kevinjones.fitmasala.data.remote.toEntity
 import com.kevinjones.fitmasala.data.remote.toIngredientEntities
 import com.kevinjones.fitmasala.data.remote.toLoggedMeal
+import com.kevinjones.fitmasala.data.remote.toLoggedMeals
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.modules.SerializersModule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -191,5 +198,84 @@ class ResponseParsingTest {
             "fixture is itself inconsistent: $derived vs ${m.calories}",
             kotlin.math.abs(derived - m.calories) / m.calories < 0.15,
         )
+    }
+
+    /** A realistic photo estimate, matching RecipeSchemas.PHOTO_ESTIMATE. */
+    private val photoJson = """
+    {
+      "containsFood": true,
+      "items": [
+        {"name":"Dal tadka","nameLocal":"dal","region":"PUNJABI",
+         "portionEstimate":"1 katori (~180g)","portionQuantity":1,"portionUnit":"KATORI",
+         "portionBasis":"katori rim against the plate",
+         "macros":{"calories":240,"proteinG":14,"carbsG":30,"fatG":8,"fiberG":6},
+         "confidence":"medium","uncertaintyNote":"Tadka ghee not visible."},
+        {"name":"Phulka","nameLocal":"roti","region":"PUNJABI",
+         "portionEstimate":"2 medium rotis","portionQuantity":2,"portionUnit":"ROTI",
+         "portionBasis":"roti diameter against the plate",
+         "macros":{"calories":240,"proteinG":8,"carbsG":44,"fatG":3,"fiberG":6},
+         "confidence":"high","uncertaintyNote":"Unbuttered as far as visible."}
+      ],
+      "totalMacros":{"calories":480,"proteinG":22,"carbsG":74,"fatG":11,"fiberG":12},
+      "overallConfidence":"medium"
+    }
+    """.trimIndent()
+
+    @Test
+    fun photoEstimateCarriesStructuredPortionsOntoEachDish() {
+        val dishes = json.decodeFromString<PhotoEstimateDto>(photoJson)
+            .toLoggedMeals(MealType.LUNCH, photoPath = "meal-photos/1.jpg", eatenAt = 1_700_000_000_000L)
+
+        assertEquals(2, dishes.size)
+        assertEquals(1.0, dishes[0].portionQuantity, 0.001)
+        assertEquals(PortionUnit.KATORI, dishes[0].portionUnit)
+        assertEquals(2.0, dishes[1].portionQuantity, 0.001)
+        assertEquals(PortionUnit.ROTI, dishes[1].portionUnit)
+        // The model's own wording survives next to the structured portion.
+        assertEquals("2 medium rotis", dishes[1].portionNote)
+        assertEquals(MealSource.PHOTO, dishes[1].source)
+        assertTrue(dishes.all { it.isAiEstimate })
+    }
+
+    @Test
+    fun anUnrecognisedPortionUnitFallsBackToOneServing() {
+        // The schema constrains the unit, but a model is not a compiler.
+        val odd = photoJson.replace("\"ROTI\"", "\"THALI_SECTION\"")
+        val roti = json.decodeFromString<PhotoEstimateDto>(odd)
+            .toLoggedMeals(MealType.LUNCH, photoPath = null)[1]
+
+        assertEquals(PortionUnit.SERVING, roti.portionUnit)
+        assertEquals(1.0, roti.portionQuantity, 0.001)
+        // Macros still describe what was eaten; only the stepping is lost.
+        assertEquals(240.0, roti.macros.calories, 0.001)
+        assertEquals("2 medium rotis", roti.portionNote)
+    }
+
+    @Test
+    fun aNonPositivePortionQuantityFallsBackToOneServing() {
+        // Structured outputs cannot bound numbers, so 0 can arrive.
+        val zero = photoJson.replace("\"portionQuantity\":2", "\"portionQuantity\":0")
+        val roti = json.decodeFromString<PhotoEstimateDto>(zero)
+            .toLoggedMeals(MealType.LUNCH, photoPath = null)[1]
+
+        assertEquals(PortionUnit.SERVING, roti.portionUnit)
+        assertEquals(1.0, roti.portionQuantity, 0.001)
+    }
+
+    /** Schema and DTO must change together; this is the tripwire for the photo pair. */
+    @Test
+    fun photoSchemaRequiresStructuredPortionsInRealUnits() {
+        val item = RecipeSchemas.PHOTO_ESTIMATE["properties"]!!.jsonObject["items"]!!
+            .jsonObject["items"]!!.jsonObject
+        val required = item["required"]!!.jsonArray.map { it.jsonPrimitive.content }
+        assertTrue("portionQuantity" in required)
+        assertTrue("portionUnit" in required)
+
+        val units = item["properties"]!!.jsonObject["portionUnit"]!!.jsonObject["enum"]!!
+            .jsonArray.map { it.jsonPrimitive.content }
+        // Every offered unit parses back to a PortionUnit, and SERVING - the
+        // fallback for "no real unit" - is never offered.
+        assertEquals(PortionUnit.entries.filter { it != PortionUnit.SERVING }.map { it.name }, units)
+        assertTrue(units.first() == PortionUnit.KATORI.name)
     }
 }

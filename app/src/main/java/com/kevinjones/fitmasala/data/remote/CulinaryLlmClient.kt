@@ -62,6 +62,15 @@ class CulinaryLlmClient @Inject constructor(
     private fun validatePhoto(dto: PhotoEstimateDto): List<String> = buildList {
         addAll(validateMacros(dto.totalMacros, "photo total"))
         if (!dto.containsFood) add("No food was found in the photo.")
+        // The schema can't bound numbers, so a zero or negative quantity (or an
+        // unknown unit) can still arrive. Say so rather than quietly logging it
+        // as "1 serving" the user can't step.
+        dto.items.filter { it.structuredPortion() == null }.forEach { item ->
+            add(
+                "The portion for ${item.name} came back as " +
+                    "'${item.portionQuantity} ${item.portionUnit}', so it will be logged as 1 serving.",
+            )
+        }
         // The model returns per-item macros AND a total. If they disagree, one of
         // them is wrong, and silently trusting the total would hide it.
         val summed = dto.items.sumOf { it.macros.calories }
