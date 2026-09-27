@@ -191,7 +191,7 @@ per decision. Read it before reversing something that looks arbitrary.
 ## Build phases
 
 1. ✅ Scaffold — Gradle, manifest, theme, Hilt application, empty package tree
-1b. ✅ Theme — StarMatch neo-brutalism ported to Compose
+1b. ✅ Theme — warm editorial M3 tonal system, light + dark (replaced the StarMatch neo-brutalist port; DECISIONS 2026-08-22)
 2. ✅ Data layer — Room entities, DAOs, database, DataStore prefs, DatabaseModule
 3. ✅ AI networking — Retrofit service, DTOs, the culinary system prompt
 4. ✅ UI foundation — theme, component set, app shell, dashboard feed — nav graph, dashboard, full theme
