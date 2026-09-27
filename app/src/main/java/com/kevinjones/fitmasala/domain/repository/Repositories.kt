@@ -56,6 +56,9 @@ interface MealRepository {
      */
     suspend fun logPhotoMeal(dishes: List<LoggedMealEntity>): List<Long>
 
+    /** Whether a photo meal is already logged at exactly [eatenAt] - the duplicate check. */
+    suspend fun hasPhotoMealAt(eatenAt: Long): Boolean
+
     suspend fun delete(id: Long)
 }
 

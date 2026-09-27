@@ -1,5 +1,6 @@
 package com.kevinjones.fitmasala.presentation.snap
 
+import com.kevinjones.fitmasala.core.util.mealTypeAt
 import com.kevinjones.fitmasala.data.local.entity.LoggedMealEntity
 import com.kevinjones.fitmasala.data.local.entity.Macros
 import com.kevinjones.fitmasala.data.local.entity.MealType
@@ -9,6 +10,10 @@ import com.kevinjones.fitmasala.data.remote.dto.PhotoItemDto
 import com.kevinjones.fitmasala.data.remote.structuredPortion
 import com.kevinjones.fitmasala.data.remote.toLoggedMeals
 import com.kevinjones.fitmasala.data.remote.toMacros
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlin.math.roundToLong
 
 /**
@@ -45,6 +50,10 @@ sealed interface SnapMealState {
         val addingDish: Boolean = false,
         /** Why the last typed dish could not be added, in words; null when there is nothing to say. */
         val addError: String? = null,
+        /** The user picked the meal type; from then on changing the time leaves it alone. */
+        val mealTypeChosen: Boolean = false,
+        /** A photo meal is already logged at exactly [eatenAt] - the same photo, most likely. */
+        val alreadyLogged: Boolean = false,
     ) : SnapMealState {
 
         /** The dishes that will be logged: everything not removed. */
@@ -81,6 +90,24 @@ sealed interface SnapMealState {
         fun toLoggedDishes(): List<LoggedMealEntity> =
             estimate.copy(items = kept.map { it.toItem() })
                 .toLoggedMeals(mealType = mealType, photoPath = photoPath, eatenAt = eatenAt)
+
+        fun withMealType(chosen: MealType): Review =
+            if (logging) this else copy(mealType = chosen, mealTypeChosen = true)
+
+        /**
+         * Moves the meal in time. Never later than [now]; the meal type follows the
+         * new time unless the user already chose one; the duplicate check starts
+         * over, because it was about the old time.
+         */
+        fun withEatenAt(millis: Long, now: Long, zone: ZoneId = ZoneId.systemDefault()): Review {
+            if (logging) return this
+            val at = minOf(millis, now)
+            return copy(
+                eatenAt = at,
+                mealType = if (mealTypeChosen) mealType else mealTypeAt(at, zone),
+                alreadyLogged = false,
+            )
+        }
 
         /** Applies [change] to one dish; ignored while logging, so the rows can't shift under it. */
         fun editDish(index: Int, change: (ReviewDish) -> ReviewDish): Review =
@@ -179,6 +206,16 @@ private fun PortionUnit.step(): Double = when (this) {
     PortionUnit.MILLILITRES -> 50.0
     else -> 0.5
 }
+
+/** "13:04 · Sun 27 Sep": when the meal is being logged against. */
+fun eatenAtLabel(millis: Long, zone: ZoneId = ZoneId.systemDefault(), locale: Locale = Locale.getDefault()): String =
+    Instant.ofEpochMilli(millis).atZone(zone).format(DateTimeFormatter.ofPattern("HH:mm · EEE d MMM", locale))
+
+/** The duplicate warning. A question, not a block: the same dal really can be eaten twice. */
+fun alreadyLoggedMessage(millis: Long, zone: ZoneId = ZoneId.systemDefault()): String =
+    "A photo meal is already logged at ${
+        Instant.ofEpochMilli(millis).atZone(zone).format(DateTimeFormatter.ofPattern("HH:mm"))
+    } - the same photo? Log again only if you ate it twice."
 
 /** Why a typed dish added nothing - said so the next attempt can be better. */
 fun noDishMessage(description: String, containsFood: Boolean): String {

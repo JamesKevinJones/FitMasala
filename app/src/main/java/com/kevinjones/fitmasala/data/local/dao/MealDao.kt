@@ -26,6 +26,15 @@ interface MealDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertAll(meals: List<LoggedMealEntity>): List<Long>
 
+    /**
+     * Photo dishes logged at exactly this moment. A gallery photo's time comes
+     * from its EXIF, so the same photo picked twice lands on the same
+     * millisecond - which is what makes this a duplicate check rather than a
+     * guess.
+     */
+    @Query("SELECT COUNT(*) FROM logged_meals WHERE source = 'PHOTO' AND eatenAt = :eatenAt")
+    suspend fun countPhotoDishesAt(eatenAt: Long): Int
+
     @Update
     suspend fun update(meal: LoggedMealEntity)
 
