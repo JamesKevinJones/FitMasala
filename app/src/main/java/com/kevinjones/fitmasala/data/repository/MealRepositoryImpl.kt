@@ -118,20 +118,22 @@ class MealRepositoryImpl @Inject constructor(
         proteinG: Double,
         carbsG: Double,
         fatG: Double,
+        eatenAt: Long,
+        photoPath: String?,
     ): Long {
-        val now = System.currentTimeMillis()
         return dao.insert(
             LoggedMealEntity(
                 name = name,
                 mealType = mealType,
-                eatenAt = now,
-                dayEpoch = DateKeys.dayEpochOf(now),
+                eatenAt = eatenAt,
+                dayEpoch = DateKeys.dayEpochOf(eatenAt),
                 portionQuantity = portionQuantity,
                 portionUnit = portionUnit,
                 macros = Macros(calories, proteinG, carbsG, fatG),
                 // Typed by hand from a label or a scale: not an estimate.
                 isAiEstimate = false,
                 source = MealSource.MANUAL,
+                photoPath = photoPath,
             ),
         )
     }

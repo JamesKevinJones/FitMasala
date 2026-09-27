@@ -38,6 +38,11 @@ interface MealRepository {
         sourceRecipeId: Long? = null,
     ): Long
 
+    /**
+     * One Dish typed by hand - not an Estimate. [eatenAt] defaults to now; a
+     * photo whose estimate failed passes its own time and [photoPath], so the
+     * meal lands on the day it was eaten and keeps its audit photo.
+     */
     suspend fun logManual(
         name: String,
         mealType: MealType,
@@ -47,6 +52,8 @@ interface MealRepository {
         proteinG: Double,
         carbsG: Double,
         fatG: Double,
+        eatenAt: Long = System.currentTimeMillis(),
+        photoPath: String? = null,
     ): Long
 
     /**
