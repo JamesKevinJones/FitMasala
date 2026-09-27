@@ -9,6 +9,7 @@ import com.kevinjones.fitmasala.data.remote.dto.MacrosDto
 import com.kevinjones.fitmasala.data.remote.dto.PhotoEstimateDto
 import com.kevinjones.fitmasala.data.remote.dto.PhotoItemDto
 import com.kevinjones.fitmasala.presentation.snap.SnapMealState
+import com.kevinjones.fitmasala.presentation.snap.noDishMessage
 import com.kevinjones.fitmasala.presentation.snap.portionLabel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -249,5 +250,47 @@ class SnapMealModelTest {
         assertEquals("Remove 10 g from Paneer", paneer.stepDescription(up = false))
         val thali = review(dish("Thali", 700.0, quantity = 0.0)).dishes[0]
         assertEquals("Add half a serving to Thali", thali.stepDescription(up = true))
+    }
+
+    // --- Typed dishes (#7) ---
+
+    @Test
+    fun typedDishesJoinTheEndOfTheSheetAndTheTotal() {
+        val state = review(dish("Dal", 240.0), dish("Roti", 240.0))
+            .editDish(0) { it.steppedUp() }
+            .copy(addingDish = true)
+            .withAddedDishes(listOf(dish("Ghee", 45.0, quantity = 1.0, unit = "TABLESPOON")), listOf("Check the ghee"))
+
+        assertEquals(listOf("Dal", "Roti", "Ghee"), state.dishes.map { it.name })
+        // The edit made before the add is kept, at the same index.
+        assertEquals(1.5, state.dishes[0].quantity, 0.001)
+        assertEquals(360.0 + 240.0 + 45.0, state.total.calories, 0.001)
+        assertEquals(listOf("Check the ghee"), state.advisories)
+        assertFalse(state.addingDish)
+        assertEquals(3, state.toLoggedDishes().size)
+    }
+
+    @Test
+    fun nothingIsLoggedWhileATypedDishIsStillBeingEstimated() {
+        assertFalse(review(dish("Dal", 240.0)).copy(addingDish = true).canLog)
+    }
+
+    @Test
+    fun anEmptyPhotoCanBeFilledByTypingTheMeal() {
+        val state = review().withAddedDishes(listOf(dish("Rajma chawal", 520.0)), emptyList())
+        assertTrue(state.canLog)
+        assertEquals(520.0, state.total.calories, 0.001)
+    }
+
+    @Test
+    fun aTypedDishThatAddsNothingSaysWhy() {
+        assertEquals(
+            "\"my keys\" doesn't read as food. Name the dish and how much, like \"1 tsp ghee\".",
+            noDishMessage(" my keys ", containsFood = false),
+        )
+        assertEquals(
+            "No dish could be picked out of \"stuff\". Try one food at a time.",
+            noDishMessage("stuff", containsFood = true),
+        )
     }
 }

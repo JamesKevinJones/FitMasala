@@ -30,6 +30,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -43,6 +44,7 @@ import com.kevinjones.fitmasala.core.ui.components.EstimateBadge
 import com.kevinjones.fitmasala.core.ui.components.FmAdvisory
 import com.kevinjones.fitmasala.core.ui.components.FmButton
 import com.kevinjones.fitmasala.core.ui.components.FmButtonGhost
+import com.kevinjones.fitmasala.core.ui.components.FmButtonTonal
 import com.kevinjones.fitmasala.core.ui.components.FmCard
 import com.kevinjones.fitmasala.core.ui.components.FmEmptyState
 import com.kevinjones.fitmasala.core.ui.components.FmErrorState
@@ -162,6 +164,7 @@ fun SnapMealScreen(
                 onStep = viewModel::stepDish,
                 onRename = { index -> renaming = index },
                 onRemove = viewModel::setDishRemoved,
+                onAddDish = viewModel::addDish,
                 onLog = viewModel::logMeal,
                 onDiscard = viewModel::discard,
             )
@@ -206,6 +209,7 @@ private fun LazyListScope.reviewItems(
     onStep: (index: Int, up: Boolean) -> Unit,
     onRename: (index: Int) -> Unit,
     onRemove: (index: Int, removed: Boolean) -> Unit,
+    onAddDish: (description: String) -> Unit,
     onLog: () -> Unit,
     onDiscard: () -> Unit,
 ) {
@@ -228,7 +232,7 @@ private fun LazyListScope.reviewItems(
             FmEmptyState(
                 icon = Icons.Outlined.RamenDining,
                 title = "No dishes found",
-                body = "Nothing in this photo could be estimated, so there is nothing to log.",
+                body = "Nothing in this photo could be estimated. Type what you ate below, or discard it.",
                 modifier = itemModifier,
             )
         }
@@ -251,6 +255,20 @@ private fun LazyListScope.reviewItems(
                 )
             }
         }
+    }
+
+    item {
+        AddDishRow(
+            dishCount = review.dishes.size,
+            adding = review.addingDish,
+            error = review.addError,
+            enabled = !review.logging,
+            onAdd = onAddDish,
+            modifier = itemModifier,
+        )
+    }
+
+    if (review.dishes.isNotEmpty()) {
         item { TotalCard(review.total, itemModifier) }
     }
 
@@ -322,6 +340,53 @@ private fun DishCard(
             color = MaterialTheme.fm.textSecondary,
             modifier = Modifier.padding(start = Fm.gutter, end = Fm.gutter, bottom = Fm.snug),
         )
+    }
+}
+
+/**
+ * What the camera missed - the ghee on the roti, the pickle, a second helping -
+ * typed and estimated with the same rules as the photo, then added to the sheet.
+ */
+@Composable
+private fun AddDishRow(
+    dishCount: Int,
+    adding: Boolean,
+    error: String?,
+    enabled: Boolean,
+    onAdd: (String) -> Unit,
+    modifier: Modifier,
+) {
+    var draft by rememberSaveable { mutableStateOf("") }
+    // A successful add grows the sheet: that is when the draft has done its job.
+    // Tracked rather than keyed on first composition, so rotating keeps the draft.
+    var seenCount by rememberSaveable { mutableIntStateOf(dishCount) }
+    LaunchedEffect(dishCount) {
+        if (dishCount > seenCount) draft = ""
+        seenCount = dishCount
+    }
+
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(Fm.tight)) {
+        SectionHeader("Missed something?")
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Fm.tight),
+        ) {
+            FmTextField(
+                value = draft,
+                onValueChange = { draft = it },
+                modifier = Modifier.weight(1f),
+                placeholder = "1 tsp ghee, a spoon of pickle",
+                enabled = enabled && !adding,
+            )
+            FmButtonTonal(
+                text = if (adding) "Adding…" else "Add",
+                onClick = { onAdd(draft) },
+                enabled = enabled && !adding && draft.isNotBlank(),
+            )
+        }
+        if (error != null) {
+            Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        }
     }
 }
 

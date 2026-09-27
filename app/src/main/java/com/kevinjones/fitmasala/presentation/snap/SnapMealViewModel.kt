@@ -126,6 +126,34 @@ class SnapMealViewModel @Inject constructor(
     /** Removal is a toggle so a mistaken tap is one tap to undo. */
     fun setDishRemoved(index: Int, removed: Boolean) = editDish(index) { it.copy(removed = removed) }
 
+    /**
+     * Estimates a typed dish ("1 tsp ghee") and adds what comes back to the
+     * sheet. The result is applied to the sheet as it is when it arrives, so
+     * edits made while waiting are kept.
+     */
+    fun addDish(description: String) {
+        val review = _state.value as? SnapMealState.Review ?: return
+        if (description.isBlank() || review.addingDish || review.logging) return
+        _state.value = review.copy(addingDish = true, addError = null)
+
+        viewModelScope.launch {
+            val result = culinaryClient.estimateFromText(
+                description = description,
+                mealType = review.mealType.name.lowercase(),
+            )
+            val current = _state.value as? SnapMealState.Review ?: return@launch
+            _state.value = when (result) {
+                is LlmResult.Success ->
+                    if (result.value.items.isEmpty()) {
+                        current.copy(addingDish = false, addError = noDishMessage(description, result.value.containsFood))
+                    } else {
+                        current.withAddedDishes(result.value.items, result.advisories)
+                    }
+                is LlmResult.Failure -> current.copy(addingDish = false, addError = result.message)
+            }
+        }
+    }
+
     private fun editDish(index: Int, change: (ReviewDish) -> ReviewDish) {
         val review = _state.value as? SnapMealState.Review ?: return
         _state.value = review.editDish(index, change)
