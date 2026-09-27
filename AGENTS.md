@@ -195,7 +195,7 @@ per decision. Read it before reversing something that looks arbitrary.
 2. ✅ Data layer — Room entities, DAOs, database, DataStore prefs, DatabaseModule
 3. ✅ AI networking — Retrofit service, DTOs, the culinary system prompt
 4. ✅ UI foundation — theme, component set, app shell, dashboard feed — nav graph, dashboard, full theme
-5. ⬜ Feature screens — AI Chef chat, workout logging, camera capture
+5. 🟡 Feature screens — AI Chef chat and workout logging done; camera capture (Snap a meal) built, awaiting merge
 6. 🟡 Plan manager — engine + persistence done; UI and vision call pending
 
 Current position is always in `docs/STATE.md`.
