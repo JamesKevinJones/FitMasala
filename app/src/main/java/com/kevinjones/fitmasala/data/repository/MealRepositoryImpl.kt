@@ -136,6 +136,9 @@ class MealRepositoryImpl @Inject constructor(
         )
     }
 
+    override suspend fun logPhotoMeal(dishes: List<LoggedMealEntity>): List<Long> =
+        if (dishes.isEmpty()) emptyList() else dao.insertAll(dishes)
+
     override suspend fun delete(id: Long) = dao.deleteById(id)
 
     private fun enumOrOther(raw: String?): Region =

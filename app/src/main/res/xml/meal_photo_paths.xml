@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The only directory the camera app may write into: app-private meal photos.
+     Must match MealPhotoStore.DIRECTORY. -->
+<paths>
+    <files-path name="meal_photos" path="meal-photos/" />
+</paths>
