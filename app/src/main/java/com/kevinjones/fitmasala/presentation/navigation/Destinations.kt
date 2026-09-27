@@ -1,14 +1,14 @@
 package com.kevinjones.fitmasala.presentation.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.FitnessCenter
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.MonitorWeight
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -54,11 +54,15 @@ enum class TopLevelDestination(
         unselectedIcon = Icons.Outlined.FitnessCenter,
         contentDescription = "Workouts",
     ),
+    // The scale, not a chart: a line-chart icon looks the same filled and
+    // outlined, which would break selection-by-shape above. It is also the
+    // plan's whole premise - targets come from the weight trend. The camera
+    // belongs to "Snap a meal" only.
     PLAN(
         route = "plan",
         label = "Plan",
-        selectedIcon = Icons.Filled.CameraAlt,
-        unselectedIcon = Icons.Outlined.CameraAlt,
+        selectedIcon = Icons.Filled.MonitorWeight,
+        unselectedIcon = Icons.Outlined.MonitorWeight,
         contentDescription = "Cut plan and progress",
     ),
 }
