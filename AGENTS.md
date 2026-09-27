@@ -108,7 +108,8 @@ its plain-value inputs.
 the target is never derived from them directly. A *consistent* estimation bias
 lands entirely in the computed maintenance figure and cancels out of the deficit.
 The failure mode the system cannot absorb is inconsistent logging, which is why
-`AdaptiveTdee` discards days with fewer than two logged meals.
+`AdaptiveTdee` discards days with fewer than two Meals (eating occasions, not
+dishes - see `CONTEXT.md`).
 
 **Workouts join only at the dashboard.** `SessionDao` and `MealDao` share nothing
 but `dayEpoch`. Progressive overload lives entirely in
@@ -161,7 +162,8 @@ per decision. Read it before reversing something that looks arbitrary.
 - **Motion values come from `FmMotion`.** Press 90ms, surfaces 220ms, exits
   60-80% of enters. Celebration is reserved for milestones only.
 - **Gamification stays tied to the maths.** A streak day requires the same two
-  logged meals `AdaptiveTdee` needs. Never award XP for a bigger deficit.
+  Meals `AdaptiveTdee` needs (distinct meal types, not dishes - see
+  `CONTEXT.md`). Never award XP for a bigger deficit.
 - **The API key never leaves the device** except in the `x-api-key` header of the
   user's own LLM request. Never log it. Backups are disabled app-wide in the
   manifest for the same reason.

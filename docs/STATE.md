@@ -1,113 +1,85 @@
 # STATE
 
-_Last updated: 2026-08-19_
+_Last updated: 2026-09-27, rewritten from a survey of the code. The previous
+version was dated 2026-08-19 and had fallen behind it._
 
 ## Where we are
 
-**Phases 1-4 complete and RUNNING ON HARDWARE. Phase 5 partial.**
+**Phases 1-4 complete. Phase 5 and 6 screens exist and read real data; the
+photo meal-logging path is designed but not built.**
 
-Installed and verified on a Redmi Note 12 (23049PCD8I), Android 15, on
-2026-08-22. Dashboard, navigation, Settings and the light/dark toggle all
-confirmed working by screenshot. 43 unit tests pass, lint is clean.
-
-First green build: 2026-08-21. `:app:assembleDebug` produces a 20.6 MB debug
-APK; `:app:testDebugUnitTest` runs 43 tests across six suites with zero failures
-(incl. CutSimulationTest, which drives the whole plan loop for 20 simulated
-weeks, and ResponseParsingTest, which proves the API-to-Room chain against a
-fixture). `:app:lintDebug` is clean: 0 errors, 43 warnings. Room exported
-`app/schemas/com.kevinjones.fitmasala.data.local.FitMasalaDatabase/1.json` -
-commit it.
-
-Android Studio Quail is now installed on the user's machine but the project has
-not been opened in it yet, so no version number and no line of Kotlin here has
-been through a compiler.
+- First green build 2026-08-21; installed and checked on a Redmi Note 12
+  (Android 15) on 2026-08-22 - dashboard, navigation, Settings, light/dark.
+- 43 JVM unit tests across six suites in `app/src/test`: `AdaptiveTdeeTest`,
+  `PlanEngineTest`, `CutSimulationTest`, `StreakAndXpTest`,
+  `MacroConsistencyTest`, `ResponseParsingTest`.
+- Two instrumented suites in `app/src/androidTest` (`MealDaoTest`,
+  `ProgressiveOverloadTest`); no recorded device run yet.
+- Room is at schema version 1; `app/schemas/.../1.json` is committed.
 
 ## What exists
 
-**Build** — Gradle files, version catalog, ProGuard rules, `app/schemas/` wired
-into androidTest assets.
+**Theme and components** - `core/ui/theme/` (Tones, Color, Type, Fonts with
+bundled DM Sans, Shape, Spacing, Motion, Insets, Theme) and
+`core/ui/components/` (the `Fm*` set: app bars, navigation bar + rail,
+expandable FAB, list items, states, tactile button, surfaces, selection,
+meters, gamification, portion picker, quick-add, log bar, trend chart,
+animation). The neo-brutalist `Brut*` components are gone; see DECISIONS
+2026-08-22.
 
-**Theme (redesigned 2026-08-22)** — the brutalist theme was scrapped after it
-was seen on a phone; see docs/DECISIONS.md. Now `core/ui/theme/` (Color, Type, Shape, Theme + `BrutPalette`
-CompositionLocal) and `core/ui/brutalism/` (`brutShadow`/`brut`/`brutOutline`/
-`hazardStripes` modifiers, and `BrutPanel`, `BrutButton`, `BrutChip`,
-`BrutTextField`, `BrutRule`, `MonoLabel`, `HazardCallout`, `BrutStatRow`).
-Ported from StarMatch's `globals.css`.
+**Data** - Room entities, DAOs (`MealDao`, `RecipeDao`, `WorkoutDao`,
+`SessionDao`, `PlanDao`), `ExerciseSeed`, DataStore `SettingsStore`,
+`ImagePreprocessor`. Repositories: `MealRepositoryImpl`, `PlanRepositoryImpl`
+(joins weigh-ins and meal totals into `AdaptiveTdee`),
+`ProgressRepositoryImpl` (streak + XP).
 
-**Data layer**
-- `data/local/entity/` — `Enums`, `Macros` (embedded, no column prefix),
-  `LoggedMealEntity`, `RecipeEntity` + `RecipeIngredientEntity`,
-  `WorkoutEntities` (Exercise, Routine, RoutineExercise, Session, Set)
-- `data/local/relation/` — `Relations` (RecipeWithIngredients,
-  RoutineWithExercises, SessionWithSets, SetWithExercise) and `Projections`
-  (DailyMacroTotals, DailyCalories, ExercisePersonalBest, SessionSummary)
-- `data/local/converter/Converters.kt` — enums by name with safe fallbacks,
-  string lists as JSON
-- `data/local/dao/` — `MealDao`, `RecipeDao`, `WorkoutDao`, `SessionDao`
-- `data/local/FitMasalaDatabase.kt` (v1, `exportSchema = true`) and
-  `ExerciseSeed.kt` (33 starter exercises incl. yoga/mobility)
-- `data/prefs/SettingsStore.kt` — DataStore: API key, provider, model, macro
-  targets, rest timer
-- `di/DatabaseModule.kt` — database, DAOs, raw-SQL seeding, `PRAGMA foreign_keys`
-- `core/util/DateKeys.kt` — the one place millis becomes `dayEpoch`
+**AI** - `CulinaryLlmClient` with `generateRecipe` (wired to the Chef) and
+`estimateFromPhoto` (built, not called by anything), structured output via
+`RecipeSchemas`, Atwater advisories, `LlmResult` failure cases.
 
-**Tests (androidTest, unrun)** — `MealDaoTest` (round-trip, day totals, empty-day
-zeroes, calorie trend) and `ProgressiveOverloadTest` (previous performance
-excludes current session and warm-ups, 1RM ranking, zero-row aggregate, active
-session recovery, cascade behaviour).
+**Domain** - `domain/plan/` (body fat, weight trend, adaptive TDEE, macro
+solver, plan engine) and `domain/progress/` (`StreakEngine`, `XpEngine`), all
+pure Kotlin.
 
-**Plan manager (`domain/plan/`, pure Kotlin, no Android imports)**
-- `PlanModels` - BodyComposition, MacroTarget, PlanProjection, PlanWarning,
-  AdaptiveState, CutAggression
-- `BodyFatEstimator` - Navy tape method, Mifflin-St Jeor, Katch-McArdle
-- `WeightTrend` - EMA smoothing + least-squares weekly rate + stall detection
-- `AdaptiveTdee` - back-calculates real maintenance from trend + intake
-- `MacroSolver` - protein (from lean mass), fat floor, carbs remainder
-- `PlanEngine` - target, goal weight, timeline, progress review
+**Screens** - Dashboard (meals, plan target, streak, sessions), Chef tab +
+AI Chef chat (generates recipes, "Cook & Eat" and "log again"), Train +
+Active Session (routines, sets, rest timer via `WorkoutDao`/`SessionDao`),
+Plan (weigh-ins, trend chart, projection via `PlanRepository`), Settings.
 
-**Plan persistence** - `BodyMetricEntity`, `PlanGoalEntity`, `PlanDao`, registered
-on the database and provided by Hilt. `LoggedMealEntity` gained `source`
-(`MealSource`) and `photoPath`.
+## Known issues
 
-**Photo pipeline** - `data/photo/ImagePreprocessor`: two-pass decode, EXIF
-rotation, 1568px downscale, JPEG q85, on `Dispatchers.Default`. CameraX and
-androidx-exifinterface added to the catalog; CAMERA permission in the manifest.
+- **A valid day counts Dishes, not Meals** - both `MealDao` day counts use
+  `COUNT(*)`, so one multi-dish photo meal would make a day valid and earn a
+  streak day. Fix: #2. (Rule in `CONTEXT.md`; DECISIONS 2026-09-27.)
+- **All three FAB actions are no-ops** - "Snap a meal", "Ask the chef" and
+  "Start a workout" have empty handlers in `FitMasalaApp.kt`.
+- **No manual meal entry screen** - `MealRepository.logManual` exists but
+  nothing calls it. Built as part of #9.
+- **Plan tab uses the camera icon.** Fix: #4.
+- **Probably dead code** - `data/remote/AiService.kt` + `AiModels.kt` +
+  `SystemPrompts.kt` + `data/repository/AiRepository.kt` form a second LLM path
+  that only `NetworkModule` references; `PlaceholderScreen` is no longer used.
+  Confirm and delete in a separate change.
 
-**Tests** - `PlanEngineTest` and `AdaptiveTdeeTest` are JVM unit tests
-(`:app:testDebugUnitTest`), so they need no device. These are the only part of
-the project whose correctness can be checked without hardware - run them first.
+## Next: photo meal logging
 
-**AI networking (`data/remote/`)**
-- `dto/` — `AnthropicRequest` / `AnthropicResponse` (adaptive thinking,
-  `output_config.effort` + `format`, refusal `stop_details`, server-side
-  fallbacks) and `CulinaryDtos` mirroring the schemas
-- `prompt/CulinaryPrompts` — the recipe and vision system prompts
-- `prompt/RecipeSchemas` — JSON schemas for structured output
-- `api/AnthropicApi` + `AnthropicAuthInterceptor` (key read per-request from
-  DataStore; `MissingApiKeyException` distinguishes "no key" from "bad key")
-- `CulinaryLlmClient` — both calls, refusal/truncation handling, Atwater
-  validation surfaced as advisories
-- `LlmResult` — enumerated failures so each gets its own UI
-- `CulinaryMappers` — DTO to entity, plus photo base64
-- `di/NetworkModule` — Json (with unknown-block fallback), OkHttp, Retrofit
-- `MacroConsistencyTest` (JVM) covers the Atwater check
+Designed in the 2026-09-27 grilling session (glossary in `CONTEXT.md`,
+decisions in `docs/DECISIONS.md`) and broken into tickets, all labelled
+`ready-for-agent`:
 
-## Phase 5 - what is still missing
+| Ticket | Blocked by |
+| --- | --- |
+| #2 Count Meals, not Dishes | - |
+| #3 Structured Portions in the photo estimate | - |
+| #4 Plan tab trend icon | - |
+| #5 Snap a meal: camera → estimate → review → log | #2, #3 |
+| #6 Edit Dishes on the review sheet | #5 |
+| #7 Add a missed Dish by typing it | #6 |
+| #8 Gallery logging, EXIF time, duplicate warning | #5 |
+| #9 Estimate failure paths + manual entry | #5 |
+| #10 Prune meal photos after 90 days | #5 |
 
-Settings, Chef and Plan are built and on device. **Train is still a
-`PlaceholderScreen`, and NO screen is wired to Room yet** - Chef and Plan both
-render hardcoded sample data. Still to build:
-
-- **Repositories + ViewModels**: the single biggest gap. Chef's frequent-meal
-  list, the dashboard's rows and Plan's weight series are all hardcoded.
-- **Chef**: chat UI against `CulinaryLlmClient.generateRecipe`; the screen
-  shell and quick-add exist, the AI call is not wired
-- **Train**: routine builder, live session tracker, rest timer
-- **Plan**: onboarding for body stats, weight trend chart, the projection to 12%
-- **Photo capture**: CameraX screen feeding `ImagePreprocessor` ->
-  `estimateFromPhoto`
-- **ViewModels + repositories** joining Room to the screens. The dashboard still
-  renders hardcoded sample rows.
+Start with #2: it is a live bug and the smallest change.
 
 ## Device automation - do not repeat
 
@@ -116,13 +88,6 @@ took over the foreground and swallowed the taps mid-sequence. Screenshots via
 `adb exec-out screencap -p` are safe and useful; blind tap injection on this
 device is not. Note also that Git Bash rewrites `/sdcard/...` into a Windows
 path, so `adb shell screencap` + `adb pull` fails - use `exec-out`.
-
-## Not yet built for the plan manager
-
-- Wiring `ImagePreprocessor` -> `CulinaryLlmClient.estimateFromPhoto` behind a
-  repository (the call itself exists; nothing invokes it yet)
-- CameraX capture screen and the plan/onboarding UI (Phase 4/5)
-- A `PlanRepository` joining PlanDao + MealDao into `AdaptiveTdee` inputs
 
 ## Toolchain (resolved 2026-08-21)
 
@@ -152,18 +117,7 @@ AGP 8.13.2, Gradle 8.13, Kotlin 2.0.21, KSP 2.0.21-1.0.28, JDK 21.
 Studio raised AGP from the originally pinned 8.7.2; the rest is unchanged, and
 the combination is now proven rather than assumed.
 
-## Exact next step
+## Verifying a change
 
-1. Open `C:\Users\kj638\Kevin codes\FitMasala` in Android Studio, sync.
-2. `:app:testDebugUnitTest` — the plan-engine tests need no device and are the
-   fastest real signal that anything works.
-3. `:app:assembleDebug` — the first real check on Room and Hilt annotation
-   processing.
-4. Confirm `app/schemas/1.json` was generated, and commit it.
-5. `:app:connectedDebugAndroidTest` with a device attached — the two test classes
-   are the proof the data layer works.
-
-Then **Phase 3: the LLM Retrofit service, request/response DTOs, the strict
-culinary system prompt, and the JSON macro parser.** Note that
-`RecipeEntity.rawResponse` exists so responses can be re-parsed later without
-re-asking the model.
+`docs/VERIFY.md`. `:app:testDebugUnitTest` first - it needs no device and
+covers the plan engine, streaks and response parsing.

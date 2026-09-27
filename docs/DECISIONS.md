@@ -724,3 +724,42 @@ adapted. `code-review` was left out because it would shadow the built-in
 have split the project's reasoning across two places, so `domain-modeling` was
 edited to append here in the existing dated format instead. Details and the
 upstream commit are in `.claude/skills/MATTPOCOCK-SOURCE.md`.
+
+---
+
+## 2026-09-27 — A valid day counts Meals, not Dishes
+
+**Decision:** The two-meal bar that `AdaptiveTdee` and `StreakEngine` apply is
+counted in Meals (distinct meal types on the day), not in rows. Rows stay one
+per Dish. Both `MealDao` day queries move from `COUNT(*)` to
+`COUNT(DISTINCT mealType)`.
+
+**Why:** A photo of a thali is logged as one row per dish, so with `COUNT(*)` a
+single three-dish lunch made the day valid for the plan and earned a streak day
+on its own - exactly the inconsistent logging the two-meal bar exists to
+exclude. A meal-group id column would count two separate snacks as two Meals,
+but costs a migration and makes every writer responsible for setting it;
+distinct meal type needs neither, and the only case it undercounts (two snacks,
+no other meal) is below the bar either way.
+
+---
+
+## 2026-09-27 — Photo meal logging: review always, sum of dishes, 90-day photos
+
+**Decision:** A photo estimate always opens a review sheet before anything is
+logged; advisories are shown inline. The model returns each Dish's portion as a
+quantity plus an Indian unit (schema and DTO changed together), and the sheet
+lets the user step the quantity, rename, delete, or add a missed Dish by typing
+it - a typed Dish is estimated with the same schema and validation as a photo.
+A Meal's total is the sum of its Dishes; the model's stated total only feeds the
+mismatch advisory and is never stored. A corrected Dish is still an Estimate.
+Photos are deleted after 90 days; the Dishes stay.
+
+**Why:** "A `Success` with advisories is not a clean result" rules out silent
+logging, and one tap on a clean result keeps the review cheap. Counting roti is
+a correction, not weighing, so marking a stepped Dish as a weighed value would
+make the two indistinguishable - the one thing the log must never do. One
+schema for photo and text estimates keeps a single schema-DTO pair in lockstep.
+Photos are the audit trail for when the scale and the log disagree; that value
+fades once a period has left the weight trend, while the storage (~0.3 GB a
+year, never backed up) does not.
