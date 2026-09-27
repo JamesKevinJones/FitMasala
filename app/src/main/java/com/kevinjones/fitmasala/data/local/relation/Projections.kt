@@ -10,6 +10,9 @@ package com.kevinjones.fitmasala.data.local.relation
  * All four sums are COALESCE'd in SQL, so an empty day returns zeroes rather
  * than nulls. A "no meals logged" day and a "0 kcal" day look identical here
  * on purpose — [mealCount] is what distinguishes them.
+ *
+ * [mealCount] is distinct meals (eating occasions), not rows: three dishes eaten
+ * at lunch are one meal.
  */
 data class DailyMacroTotals(
     val calories: Double,
@@ -70,7 +73,10 @@ data class FrequentMeal(
     val avgPortionQuantity: Double,
 )
 
-/** Per-day meal count, used to decide whether a day counts toward the streak. */
+/**
+ * Per-day count of distinct meals (eating occasions, not rows), used to decide
+ * whether a day counts toward the streak and the adaptive-TDEE window.
+ */
 data class DayMealCount(
     val dayEpoch: Long,
     val mealCount: Int,
