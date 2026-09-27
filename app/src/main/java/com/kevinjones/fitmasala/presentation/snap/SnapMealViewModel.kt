@@ -118,6 +118,19 @@ class SnapMealViewModel @Inject constructor(
         if (!review.logging) _state.value = review.copy(mealType = mealType)
     }
 
+    fun stepDish(index: Int, up: Boolean) =
+        editDish(index) { if (up) it.steppedUp() else it.steppedDown() }
+
+    fun renameDish(index: Int, name: String) = editDish(index) { it.renamed(name) }
+
+    /** Removal is a toggle so a mistaken tap is one tap to undo. */
+    fun setDishRemoved(index: Int, removed: Boolean) = editDish(index) { it.copy(removed = removed) }
+
+    private fun editDish(index: Int, change: (ReviewDish) -> ReviewDish) {
+        val review = _state.value as? SnapMealState.Review ?: return
+        _state.value = review.editDish(index, change)
+    }
+
     fun logMeal() {
         val review = _state.value as? SnapMealState.Review ?: return
         if (!review.canLog) return
