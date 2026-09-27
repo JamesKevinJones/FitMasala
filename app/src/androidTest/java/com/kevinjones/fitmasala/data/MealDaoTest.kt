@@ -71,7 +71,9 @@ class MealDaoTest {
 
     @Test
     fun dayTotalsSumOnlyTheRequestedDay() = runTest {
-        dao.insert(meal("Poha", 20_000, Macros(calories = 300.0, proteinG = 7.0, carbsG = 50.0, fatG = 8.0)))
+        dao.insert(
+            meal("Poha", 20_000, Macros(calories = 300.0, proteinG = 7.0, carbsG = 50.0, fatG = 8.0), MealType.BREAKFAST),
+        )
         dao.insert(meal("Dal Tadka", 20_000, Macros(calories = 240.0, proteinG = 14.0, carbsG = 30.0, fatG = 8.0)))
         dao.insert(meal("Next day biryani", 20_001, Macros(calories = 900.0)))
 
@@ -80,6 +82,40 @@ class MealDaoTest {
         assertEquals(540.0, totals.calories, 0.001)
         assertEquals(21.0, totals.proteinG, 0.001)
         assertEquals(2, totals.mealCount)
+    }
+
+    /**
+     * The bug this guards: one sitting logged as several dishes (a thali photo
+     * writes a row per dish) must count as ONE meal, or a single lunch clears
+     * the two-meal bar AdaptiveTdee and the streak both rely on.
+     */
+    @Test
+    fun threeDishesAtOneMealCountAsOneMeal() = runTest {
+        dao.insert(meal("Dal", 20_000, Macros(calories = 240.0)))
+        dao.insert(meal("Roti", 20_000, Macros(calories = 240.0)))
+        dao.insert(meal("Sabzi", 20_000, Macros(calories = 150.0)))
+
+        assertEquals(1, dao.observeDayTotals(20_000).first().mealCount)
+        assertEquals(1, dao.observeDayMealCounts(20_000).first().single().mealCount)
+    }
+
+    @Test
+    fun twoMealTypesMakeTwoMeals() = runTest {
+        dao.insert(meal("Poha", 20_000, Macros(calories = 300.0), MealType.BREAKFAST))
+        dao.insert(meal("Rajma Chawal", 20_000, Macros(calories = 420.0), MealType.LUNCH))
+
+        assertEquals(2, dao.observeDayTotals(20_000).first().mealCount)
+        assertEquals(2, dao.observeDayMealCounts(20_000).first().single().mealCount)
+    }
+
+    /** The accepted trade-off of counting by meal type: two snacks are one meal. */
+    @Test
+    fun twoSnacksAloneAreOneMeal() = runTest {
+        dao.insert(meal("Chai", 20_000, Macros(calories = 100.0), MealType.SNACK))
+        dao.insert(meal("Samosa", 20_000, Macros(calories = 260.0), MealType.SNACK))
+
+        assertEquals(1, dao.observeDayTotals(20_000).first().mealCount)
+        assertEquals(1, dao.observeDayMealCounts(20_000).first().single().mealCount)
     }
 
     /**

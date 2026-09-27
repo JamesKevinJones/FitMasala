@@ -34,6 +34,9 @@ interface MealDao {
     /**
      * COALESCE, not nullable columns: an empty day must return a zeroed row, not
      * a row of nulls that every caller then has to defend against.
+     *
+     * `mealCount` counts meals (eating occasions), not rows - see
+     * [observeDayMealCounts].
      */
     @Query(
         """
@@ -43,7 +46,7 @@ interface MealDao {
             COALESCE(SUM(carbsG),   0.0) AS carbsG,
             COALESCE(SUM(fatG),     0.0) AS fatG,
             COALESCE(SUM(fiberG),   0.0) AS fiberG,
-            COUNT(*) AS mealCount
+            COUNT(DISTINCT mealType) AS mealCount
         FROM logged_meals
         WHERE dayEpoch = :dayEpoch
         """,
@@ -109,10 +112,15 @@ interface MealDao {
      * Days and how many meals each carries. Feeds the streak, which only counts
      * a day once it clears the same two-meal bar AdaptiveTdee needs - so the
      * filtering happens in the caller, not here.
+     *
+     * A meal is an eating occasion, not a row: a thali photo is logged as one row
+     * per dish, so counting rows let a single lunch clear the two-meal bar on its
+     * own. Counting distinct meal types fixes that without a grouping column. The
+     * one case it undercounts - two separate snacks - is below the bar either way.
      */
     @Query(
         """
-        SELECT dayEpoch AS dayEpoch, COUNT(*) AS mealCount
+        SELECT dayEpoch AS dayEpoch, COUNT(DISTINCT mealType) AS mealCount
         FROM logged_meals
         WHERE dayEpoch >= :fromDayEpoch
         GROUP BY dayEpoch
