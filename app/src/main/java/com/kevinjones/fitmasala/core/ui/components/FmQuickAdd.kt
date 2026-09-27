@@ -92,31 +92,60 @@ fun FmQuickAdd(
                 )
             }
         } else {
-            Row(
-                modifier = Modifier
-                    .clip(FmRadius.Input)
-                    .background(accent)
-                    .defaultMinSize(minWidth = 76.dp, minHeight = Fm.touchTarget),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                StepperButton(
-                    icon = Icons.Filled.Remove,
-                    description = "Remove one $label",
-                    onClick = onDecrement,
-                )
-                Text(
-                    text = "$count",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
-                StepperButton(
-                    icon = Icons.Filled.Add,
-                    description = "Add one $label",
-                    onClick = onIncrement,
-                )
-            }
+            FmStepper(
+                value = "$count",
+                onIncrement = onIncrement,
+                onDecrement = onDecrement,
+                incrementDescription = "Add one $label",
+                decrementDescription = "Remove one $label",
+            )
         }
+    }
+}
+
+/**
+ * The expanded half of [FmQuickAdd] on its own, for quantities that are not a
+ * whole count - 1.5 katori, 180 g. The value is shown as given, and each side
+ * says what it does ("Remove half a katori"), because "remove one" would be a lie
+ * for anything that steps by a half or by ten grams.
+ *
+ * [decrementEnabled] is false at the smallest step: a portion never reaches zero
+ * here - removing the dish is a separate, deliberate action.
+ */
+@Composable
+fun FmStepper(
+    value: String,
+    onIncrement: () -> Unit,
+    onDecrement: () -> Unit,
+    incrementDescription: String,
+    decrementDescription: String,
+    modifier: Modifier = Modifier,
+    decrementEnabled: Boolean = true,
+) {
+    Row(
+        modifier = modifier
+            .clip(FmRadius.Input)
+            .background(MaterialTheme.colorScheme.primary)
+            .defaultMinSize(minWidth = 76.dp, minHeight = Fm.touchTarget),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        StepperButton(
+            icon = Icons.Filled.Remove,
+            description = decrementDescription,
+            onClick = onDecrement,
+            enabled = decrementEnabled,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onPrimary,
+        )
+        StepperButton(
+            icon = Icons.Filled.Add,
+            description = incrementDescription,
+            onClick = onIncrement,
+        )
     }
 }
 
@@ -130,18 +159,19 @@ private fun StepperButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     description: String,
     onClick: () -> Unit,
+    enabled: Boolean = true,
 ) {
     Box(
         modifier = Modifier
             .size(Fm.touchTarget)
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onPrimary,
+            tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = if (enabled) 1f else 0.38f),
             modifier = Modifier.size(16.dp),
         )
     }

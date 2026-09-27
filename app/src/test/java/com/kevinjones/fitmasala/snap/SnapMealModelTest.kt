@@ -136,4 +136,118 @@ class SnapMealModelTest {
         assertEquals("1 serving", dish("Thali", 700.0, quantity = 0.0, unit = "KATORI").portionLabel())
         assertEquals("1 serving", dish("Thali", 700.0, quantity = 2.0, unit = "THALI_SECTION").portionLabel())
     }
+
+    // --- Editing on the review sheet (#6) ---
+
+    private fun roti() = dish("Phulka", 360.0, quantity = 3.0, unit = "ROTI", protein = 12.0)
+
+    @Test
+    fun steppingAPortionScalesEveryMacroFromTheModelsNumbers() {
+        val two = review(roti()).editDish(0) { it.steppedDown().steppedDown() }.dishes[0]
+
+        assertEquals(2.0, two.quantity, 0.001)
+        assertEquals("2 roti", two.portionLabel)
+        // 2 of 3 roti is two thirds of everything.
+        assertEquals(240.0, two.macros.calories, 0.001)
+        assertEquals(8.0, two.macros.proteinG, 0.001)
+        assertEquals(20.0, two.macros.carbsG, 0.001)
+    }
+
+    @Test
+    fun steppingAwayAndBackReturnsExactlyTheModelsAnswer() {
+        val there = review(roti()).editDish(0) { it.steppedUp().steppedUp().steppedDown().steppedDown() }.dishes[0]
+        assertEquals(360.0, there.macros.calories, 1e-9)
+        assertEquals(3.0, there.quantity, 1e-9)
+    }
+
+    @Test
+    fun aPortionNeverStepsToZero() {
+        val half = review(dish("Dal", 200.0, quantity = 0.5)).dishes[0]
+        assertFalse(half.canStepDown)
+        assertEquals(0.5, half.steppedDown().quantity, 0.001)
+
+        // A model portion smaller than one step is never raised by stepping down.
+        val sliver = review(dish("Pickle", 20.0, quantity = 0.3)).dishes[0]
+        assertEquals(0.3, sliver.steppedDown().quantity, 0.001)
+    }
+
+    @Test
+    fun stepsFollowTheUnit() {
+        assertEquals(0.5, review(dish("Dal", 240.0)).dishes[0].step, 0.0)
+        assertEquals(10.0, review(dish("Paneer", 300.0, quantity = 150.0, unit = "GRAMS")).dishes[0].step, 0.0)
+        assertEquals(50.0, review(dish("Lassi", 200.0, quantity = 250.0, unit = "MILLILITRES")).dishes[0].step, 0.0)
+    }
+
+    @Test
+    fun renamingTrimsAndABlankNameIsIgnored() {
+        val state = review(dish("Dal", 240.0))
+        assertEquals("Dal makhani", state.editDish(0) { it.renamed("  Dal makhani ") }.dishes[0].name)
+        assertEquals("Dal", state.editDish(0) { it.renamed("   ") }.dishes[0].name)
+    }
+
+    @Test
+    fun aRemovedDishLeavesTheTotalTheCountAndTheLogAndCanComeBack() {
+        val state = review(dish("Dal", 240.0), dish("Roti", 240.0))
+        val removed = state.editDish(1) { it.copy(removed = true) }
+
+        assertEquals(240.0, removed.total.calories, 0.001)
+        assertEquals(1, removed.toLoggedDishes().size)
+        assertEquals("Lunch logged · 1 dish · 240 kcal", removed.summary())
+
+        val restored = removed.editDish(1) { it.copy(removed = false) }
+        assertEquals(480.0, restored.total.calories, 0.001)
+    }
+
+    @Test
+    fun removingEveryDishDisablesLogging() {
+        val state = review(dish("Dal", 240.0)).editDish(0) { it.copy(removed = true) }
+        assertFalse(state.canLog)
+    }
+
+    @Test
+    fun nothingChangesWhileLogging() {
+        val logging = review(roti()).copy(logging = true)
+        assertEquals(logging, logging.editDish(0) { it.steppedDown() })
+    }
+
+    @Test
+    fun aCorrectedDishIsLoggedAsAnEstimateWithItsNewPortionAndTheModelsWording() {
+        val row = review(roti())
+            .editDish(0) { it.steppedDown().steppedDown().renamed("Tandoori roti") }
+            .toLoggedDishes()
+            .single()
+
+        assertEquals("Tandoori roti", row.name)
+        assertEquals(2.0, row.portionQuantity, 0.001)
+        assertEquals(PortionUnit.ROTI, row.portionUnit)
+        assertEquals(240.0, row.macros.calories, 0.001)
+        // Counting roti is a correction, not weighing: still an Estimate.
+        assertTrue(row.isAiEstimate)
+        assertEquals(0.6, row.estimateConfidence!!, 0.001)
+        // The model's own wording survives beside the correction.
+        assertEquals("3.0 ROTI", row.portionNote)
+    }
+
+    @Test
+    fun aFallbackDishStepsInServings() {
+        val row = review(dish("Thali", 700.0, quantity = 0.0))
+            .editDish(0) { it.steppedUp() }
+            .toLoggedDishes()
+            .single()
+
+        assertEquals(PortionUnit.SERVING, row.portionUnit)
+        assertEquals(1.5, row.portionQuantity, 0.001)
+        assertEquals(1050.0, row.macros.calories, 0.001)
+    }
+
+    @Test
+    fun stepperButtonsSayWhatTheyDo() {
+        val roti = review(roti()).dishes[0]
+        assertEquals("Add half a roti to Phulka", roti.stepDescription(up = true))
+        assertEquals("Remove half a roti from Phulka", roti.stepDescription(up = false))
+        val paneer = review(dish("Paneer", 300.0, quantity = 150.0, unit = "GRAMS")).dishes[0]
+        assertEquals("Remove 10 g from Paneer", paneer.stepDescription(up = false))
+        val thali = review(dish("Thali", 700.0, quantity = 0.0)).dishes[0]
+        assertEquals("Add half a serving to Thali", thali.stepDescription(up = true))
+    }
 }
