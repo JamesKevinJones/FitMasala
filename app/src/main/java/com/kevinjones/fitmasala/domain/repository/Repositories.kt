@@ -49,6 +49,13 @@ interface MealRepository {
         fatG: Double,
     ): Long
 
+    /**
+     * Logs the Dishes of one photographed Meal together. The rows arrive fully
+     * built by the photo mapper, so what the review sheet showed is what is
+     * written.
+     */
+    suspend fun logPhotoMeal(dishes: List<LoggedMealEntity>): List<Long>
+
     suspend fun delete(id: Long)
 }
 

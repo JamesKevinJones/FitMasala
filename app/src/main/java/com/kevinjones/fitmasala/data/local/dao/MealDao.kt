@@ -19,6 +19,13 @@ interface MealDao {
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(meal: LoggedMealEntity): Long
 
+    /**
+     * Every Dish of one Meal in a single statement, so a photo is logged whole or
+     * not at all - a half-written thali would undercount the day silently.
+     */
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertAll(meals: List<LoggedMealEntity>): List<Long>
+
     @Update
     suspend fun update(meal: LoggedMealEntity)
 

@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -36,6 +37,7 @@ import com.kevinjones.fitmasala.core.ui.components.FmNavigationRail
 import com.kevinjones.fitmasala.core.ui.components.rememberCollapsingBarBehavior
 import com.kevinjones.fitmasala.core.ui.theme.horizontalMargin
 import com.kevinjones.fitmasala.core.ui.theme.screenContentPadding
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -81,6 +83,7 @@ fun FitMasalaApp(
     // back to true because the nav graph's back stack hadn't actually moved,
     // so back on Settings silently did nothing.
     val showSettings = currentRoute == Routes.SETTINGS
+    val snapping = currentRoute == Routes.PHOTO_CAPTURE
     var destination by remember(currentRoute) {
         mutableStateOf(
             TopLevelDestination.entries.find { it.route == currentRoute }
@@ -89,6 +92,7 @@ fun FitMasalaApp(
     }
     var fabExpanded by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     val scrollBehavior = rememberCollapsingBarBehavior()
 
     val compact = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Compact
@@ -111,7 +115,10 @@ fun FitMasalaApp(
     }
 
     val quickActions = listOf(
-        FabAction("Snap a meal", Icons.Filled.CameraAlt) { },
+        FabAction("Snap a meal", Icons.Filled.CameraAlt) {
+            fabExpanded = false
+            navController.navigate(Routes.PHOTO_CAPTURE) { launchSingleTop = true }
+        },
         FabAction("Ask the chef", Icons.Filled.Restaurant) { },
         FabAction("Start a workout", Icons.Filled.FitnessCenter) { },
     )
@@ -133,8 +140,12 @@ fun FitMasalaApp(
             containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 FmLargeTopBar(
-                    title = if (showSettings) "Settings" else titleFor(destination),
-                    overline = if (showSettings) null else overlineFor(destination),
+                    title = when {
+                        showSettings -> "Settings"
+                        snapping -> "Snap a meal"
+                        else -> titleFor(destination)
+                    },
+                    overline = if (showSettings || snapping) null else overlineFor(destination),
                     scrollBehavior = scrollBehavior,
                     actions = {
                         FmBarAction(
@@ -170,7 +181,8 @@ fun FitMasalaApp(
             floatingActionButton = {
                 // No FAB on Settings: a FAB is the screen's primary action, and
                 // Settings has none. It was also physically covering a switch.
-                if (!showSettings) {
+                // None while snapping either: "Log meal" is that screen's action.
+                if (!showSettings && !snapping) {
                     FmExpandableFab(
                         actions = quickActions,
                         expanded = fabExpanded,
@@ -189,7 +201,10 @@ fun FitMasalaApp(
                     navController = navController,
                     windowSizeClass = windowSizeClass,
                     innerPadding = innerPadding,
-                    settingsViewModel = settingsViewModel
+                    settingsViewModel = settingsViewModel,
+                    onMessage = { message ->
+                        scope.launch { snackbarHostState.showSnackbar(message) }
+                    },
                 )
             }
         }

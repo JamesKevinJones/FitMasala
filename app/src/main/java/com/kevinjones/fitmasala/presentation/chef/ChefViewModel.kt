@@ -2,6 +2,7 @@ package com.kevinjones.fitmasala.presentation.chef
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kevinjones.fitmasala.core.util.mealTypeForHour
 import com.kevinjones.fitmasala.data.local.dao.RecipeDao
 import com.kevinjones.fitmasala.data.local.entity.CookingMethod
 import com.kevinjones.fitmasala.data.local.entity.Macros
@@ -168,13 +169,7 @@ class ChefViewModel @Inject constructor(
 
     fun clearJustLogged() { justLogged.value = 0 }
 
-    private fun mealTypeForNow(): MealType = when (LocalTime.now().hour) {
-        in 4..10 -> MealType.BREAKFAST
-        in 11..15 -> MealType.LUNCH
-        in 16..18 -> MealType.SNACK
-        in 19..23 -> MealType.DINNER
-        else -> MealType.SNACK
-    }
+    private fun mealTypeForNow(): MealType = mealTypeForHour(LocalTime.now().hour)
 
     private fun enumOrOther(raw: String): Region =
         Region.entries.firstOrNull { it.name.equals(raw, ignoreCase = true) } ?: Region.OTHER

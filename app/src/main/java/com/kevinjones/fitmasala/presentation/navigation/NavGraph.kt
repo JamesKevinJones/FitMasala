@@ -16,6 +16,7 @@ import com.kevinjones.fitmasala.presentation.dashboard.DashboardScreen
 import com.kevinjones.fitmasala.presentation.plan.PlanScreen
 import com.kevinjones.fitmasala.presentation.settings.SettingsScreen
 import com.kevinjones.fitmasala.presentation.settings.SettingsViewModel
+import com.kevinjones.fitmasala.presentation.snap.SnapMealScreen
 import com.kevinjones.fitmasala.presentation.workout.ActiveSessionScreen
 import com.kevinjones.fitmasala.presentation.workout.TrainScreen
 
@@ -24,7 +25,8 @@ fun FitMasalaNavGraph(
     navController: NavHostController,
     windowSizeClass: WindowSizeClass,
     innerPadding: PaddingValues,
-    settingsViewModel: SettingsViewModel
+    settingsViewModel: SettingsViewModel,
+    onMessage: (String) -> Unit,
 ) {
     NavHost(
         navController = navController,
@@ -37,6 +39,19 @@ fun FitMasalaNavGraph(
             ChefScreen(
                 contentPadding = innerPadding,
                 onAskChef = { navController.navigate(Routes.AI_CHEF) }
+            )
+        }
+        composable(Routes.PHOTO_CAPTURE) {
+            SnapMealScreen(
+                contentPadding = screenContentPadding(
+                    innerPadding,
+                    windowSizeClass.horizontalMargin(),
+                ),
+                onClose = { navController.popBackStack() },
+                onLogged = { summary ->
+                    onMessage(summary)
+                    navController.popBackStack()
+                },
             )
         }
         composable(Routes.AI_CHEF) {
