@@ -62,6 +62,16 @@ data class LoggedMealEntity(
     val isAiEstimate: Boolean = true,
     /** The model's own stated confidence, when it gives one. 0.0–1.0. */
     val estimateConfidence: Double? = null,
+    /**
+     * The model that produced this Estimate, as the API named it. Null for values
+     * typed by hand, for re-logged averages, and for rows logged before this was
+     * recorded (schema v1).
+     *
+     * `AdaptiveTdee` relies on the estimation bias staying consistent. A change of
+     * provider or model shifts that bias, and this column is how the log shows
+     * when it happened - see DECISIONS 2026-09-27, Gemini as a second estimator.
+     */
+    val estimateModel: String? = null,
 
     val sourceRecipeId: Long? = null,
     val source: MealSource = MealSource.MANUAL,

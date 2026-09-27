@@ -89,7 +89,8 @@ class MealRepositoryImpl @Inject constructor(
         macros: Macros,
         portions: Double,
         mealType: MealType,
-        sourceRecipeId: Long?
+        sourceRecipeId: Long?,
+        estimateModel: String?,
     ): Long {
         val now = System.currentTimeMillis()
         return dao.insert(
@@ -103,6 +104,7 @@ class MealRepositoryImpl @Inject constructor(
                 portionUnit = PortionUnit.SERVING,
                 macros = macros * portions,
                 isAiEstimate = true,
+                estimateModel = estimateModel,
                 source = MealSource.AI_CHAT,
                 sourceRecipeId = sourceRecipeId,
             ),

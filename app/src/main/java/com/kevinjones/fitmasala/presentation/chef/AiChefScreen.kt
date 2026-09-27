@@ -81,11 +81,11 @@ fun AiChefScreen(
 @Composable
 private fun ChefMessageItem(
     message: ChefMessage,
-    onCookAndEat: (RecipeDto, String) -> Unit
+    onCookAndEat: (ChefMessage.Recipe) -> Unit
 ) {
     when (message) {
         is ChefMessage.Text -> ChatBubble(message.text, message.isUser)
-        is ChefMessage.Recipe -> RecipeCard(message.recipe, message.rawJson, onCookAndEat)
+        is ChefMessage.Recipe -> RecipeCard(message.recipe, onCookAndEat = { onCookAndEat(message) })
         is ChefMessage.Error -> ChatBubble(message.message, false)
     }
 }
@@ -114,8 +114,7 @@ private fun ChatBubble(text: String, isUser: Boolean) {
 @Composable
 private fun RecipeCard(
     recipe: RecipeDto,
-    rawJson: String,
-    onCookAndEat: (RecipeDto, String) -> Unit
+    onCookAndEat: () -> Unit
 ) {
     FmCard(
         modifier = Modifier.fillMaxWidth(),
@@ -137,7 +136,7 @@ private fun RecipeCard(
 
         FmButton(
             "Cook & Eat",
-            onClick = { onCookAndEat(recipe, rawJson) },
+            onClick = onCookAndEat,
             modifier = Modifier.fillMaxWidth()
         )
     }

@@ -6,6 +6,7 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.kevinjones.fitmasala.data.local.ExerciseSeed
 import com.kevinjones.fitmasala.data.local.FitMasalaDatabase
+import com.kevinjones.fitmasala.data.local.Migrations
 import com.kevinjones.fitmasala.data.local.dao.MealDao
 import com.kevinjones.fitmasala.data.local.dao.PlanDao
 import com.kevinjones.fitmasala.data.local.dao.RecipeDao
@@ -63,6 +64,7 @@ object DatabaseModule {
     fun provideDatabase(@ApplicationContext context: Context): FitMasalaDatabase =
         Room.databaseBuilder(context, FitMasalaDatabase::class.java, FitMasalaDatabase.NAME)
             .addCallback(callback)
+            .addMigrations(*Migrations.ALL)
             // No fallbackToDestructiveMigration(), ever. See docs/DECISIONS.md.
             .build()
 
