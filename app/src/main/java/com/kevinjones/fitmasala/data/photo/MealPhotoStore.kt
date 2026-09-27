@@ -3,6 +3,7 @@ package com.kevinjones.fitmasala.data.photo
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
+import androidx.exifinterface.media.ExifInterface
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject
@@ -30,6 +31,27 @@ class MealPhotoStore @Inject constructor(
     /** The content:// URI the camera app is allowed to write [file] through. */
     fun uriFor(file: File): Uri =
         FileProvider.getUriForFile(context, "${context.packageName}$AUTHORITY_SUFFIX", file)
+
+    /**
+     * Copies a photo picked from the gallery into app-private storage, so the
+     * meal keeps its audit photo even if the original is later deleted. Blocking IO.
+     */
+    fun importFrom(uri: Uri): File {
+        val file = newPhotoFile()
+        val input = context.contentResolver.openInputStream(uri) ?: error("could not open $uri")
+        input.use { source -> file.outputStream().use { source.copyTo(it) } }
+        return file
+    }
+
+    /**
+     * The photo's own `DateTimeOriginal` and `OffsetTimeOriginal`, raw - read
+     * before the file is downscaled, because re-encoding drops EXIF. Blocking IO.
+     */
+    fun exifDateTime(path: String): Pair<String?, String?> {
+        val exif = ExifInterface(path)
+        return exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL) to
+            exif.getAttribute(ExifInterface.TAG_OFFSET_TIME_ORIGINAL)
+    }
 
     /** Keeps only the downscaled image that was sent for estimation. Blocking IO. */
     fun replaceWith(path: String, jpegBytes: ByteArray) = File(path).writeBytes(jpegBytes)

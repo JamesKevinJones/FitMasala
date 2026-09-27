@@ -1,5 +1,6 @@
 package com.kevinjones.fitmasala.snap
 
+import com.kevinjones.fitmasala.core.util.DateKeys
 import com.kevinjones.fitmasala.core.util.mealTypeAt
 import com.kevinjones.fitmasala.core.util.mealTypeForHour
 import com.kevinjones.fitmasala.data.local.entity.MealSource
@@ -9,6 +10,8 @@ import com.kevinjones.fitmasala.data.remote.dto.MacrosDto
 import com.kevinjones.fitmasala.data.remote.dto.PhotoEstimateDto
 import com.kevinjones.fitmasala.data.remote.dto.PhotoItemDto
 import com.kevinjones.fitmasala.presentation.snap.SnapMealState
+import com.kevinjones.fitmasala.presentation.snap.alreadyLoggedMessage
+import com.kevinjones.fitmasala.presentation.snap.eatenAtLabel
 import com.kevinjones.fitmasala.presentation.snap.noDishMessage
 import com.kevinjones.fitmasala.presentation.snap.portionLabel
 import org.junit.Assert.assertEquals
@@ -291,6 +294,53 @@ class SnapMealModelTest {
         assertEquals(
             "No dish could be picked out of \"stuff\". Try one food at a time.",
             noDishMessage("stuff", containsFood = true),
+        )
+    }
+
+    // --- Gallery time and duplicates (#8) ---
+
+    private val india = java.time.ZoneId.of("Asia/Kolkata")
+    private fun at(day: Int, hour: Int, minute: Int = 0) =
+        LocalDateTime.of(2026, 9, day, hour, minute).atZone(india).toInstant().toEpochMilli()
+
+    @Test
+    fun movingTheMealInTimeMovesItsMealTypeUntilTheUserChoosesOne() {
+        val lunch = review(dish("Dal", 240.0)).copy(eatenAt = at(27, 13))
+        val evening = lunch.withEatenAt(at(26, 20, 30), now = at(27, 21), zone = india)
+        assertEquals(MealType.DINNER, evening.mealType)
+        assertEquals(at(26, 20, 30), evening.eatenAt)
+
+        val chosen = lunch.withMealType(MealType.SNACK).withEatenAt(at(26, 8), now = at(27, 21), zone = india)
+        assertEquals(MealType.SNACK, chosen.mealType)
+    }
+
+    @Test
+    fun theMealCannotBeMovedIntoTheFuture() {
+        val now = at(27, 21)
+        assertEquals(now, review(dish("Dal", 240.0)).withEatenAt(at(28, 9), now = now, zone = india).eatenAt)
+    }
+
+    @Test
+    fun movingTheMealClearsTheDuplicateWarningUntilItIsCheckedAgain() {
+        val flagged = review(dish("Dal", 240.0)).copy(alreadyLogged = true)
+        assertFalse(flagged.withEatenAt(at(26, 13), now = at(27, 21), zone = india).alreadyLogged)
+    }
+
+    @Test
+    fun aLateLogLandsOnTheDayTheMealWasEaten() {
+        // Dinner at 23:50 on the 26th, logged the next morning.
+        val eatenAt = at(26, 23, 50)
+        val row = review(dish("Dal", 240.0)).withEatenAt(eatenAt, now = at(27, 9), zone = india).toLoggedDishes().single()
+        assertEquals(eatenAt, row.eatenAt)
+        assertEquals(DateKeys.dayEpochOf(eatenAt), row.dayEpoch)
+    }
+
+    @Test
+    fun theTimeAndTheDuplicateWarningReadClearly() {
+        assertEquals("13:04 · Sun 27 Sep", eatenAtLabel(at(27, 13, 4), india, java.util.Locale.US))
+        assertEquals(
+            "A photo meal is already logged at 13:04 - the same photo? Log again only if you ate it twice.",
+            alreadyLoggedMessage(at(27, 13, 4), india),
         )
     }
 }

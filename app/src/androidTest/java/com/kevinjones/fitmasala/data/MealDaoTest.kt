@@ -7,6 +7,7 @@ import com.kevinjones.fitmasala.data.local.FitMasalaDatabase
 import com.kevinjones.fitmasala.data.local.dao.MealDao
 import com.kevinjones.fitmasala.data.local.entity.LoggedMealEntity
 import com.kevinjones.fitmasala.data.local.entity.Macros
+import com.kevinjones.fitmasala.data.local.entity.MealSource
 import com.kevinjones.fitmasala.data.local.entity.MealType
 import com.kevinjones.fitmasala.data.local.entity.PortionUnit
 import com.kevinjones.fitmasala.data.local.entity.Region
@@ -144,5 +145,19 @@ class MealDaoTest {
         assertEquals(100.0, trend[0].calories, 0.001)
         assertEquals(250.0, trend[1].calories, 0.001)
         assertTrue(trend[0].dayEpoch < trend[1].dayEpoch)
+    }
+
+    /** The duplicate check behind gallery logging: same photo, same EXIF millisecond. */
+    @Test
+    fun photoDishesAreFoundByTheirExactTime() = runTest {
+        val at = 20_000 * 86_400_000L + 47_045_000L
+        dao.insert(meal("Dal", 20_000, Macros(calories = 240.0)).copy(eatenAt = at, source = MealSource.PHOTO))
+        dao.insert(meal("Roti", 20_000, Macros(calories = 240.0)).copy(eatenAt = at, source = MealSource.PHOTO))
+        // Same moment, typed by hand: not a photo duplicate.
+        dao.insert(meal("Curd", 20_000, Macros(calories = 90.0)).copy(eatenAt = at + 1_000, source = MealSource.MANUAL))
+
+        assertEquals(2, dao.countPhotoDishesAt(at))
+        assertEquals(0, dao.countPhotoDishesAt(at + 1_000))
+        assertEquals(0, dao.countPhotoDishesAt(at - 1))
     }
 }

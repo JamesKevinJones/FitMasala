@@ -4,7 +4,9 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kevinjones.fitmasala.core.util.exifTakenAt
 import com.kevinjones.fitmasala.core.util.mealTypeAt
+import com.kevinjones.fitmasala.core.util.resolveEatenAt
 import com.kevinjones.fitmasala.data.local.entity.MealType
 import com.kevinjones.fitmasala.data.photo.ImagePreprocessor
 import com.kevinjones.fitmasala.data.photo.MealPhotoStore
@@ -21,6 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.time.ZoneId
 import javax.inject.Inject
 
 /**
@@ -48,16 +51,8 @@ class SnapMealViewModel @Inject constructor(
         get() = savedState[KEY_PENDING_PATH]
         set(value) { savedState[KEY_PENDING_PATH] = value }
 
-    /** The camera opens by itself once per visit, never again on recomposition or rotation. */
-    private var autoLaunched: Boolean
-        get() = savedState[KEY_AUTO_LAUNCHED] ?: false
-        set(value) { savedState[KEY_AUTO_LAUNCHED] = value }
-
-    fun shouldAutoLaunchCamera(): Boolean = !autoLaunched && _state.value == SnapMealState.Capturing
-
     /** A fresh file for the camera app to write into, as the URI it is allowed to use. */
     fun prepareCapture(): Uri {
-        autoLaunched = true
         photos.discard(pendingPath)
         val file = photos.newPhotoFile()
         pendingPath = file.absolutePath
@@ -65,19 +60,60 @@ class SnapMealViewModel @Inject constructor(
     }
 
     fun onPermissionDenied() {
-        autoLaunched = true
         _state.value = SnapMealState.PermissionDenied
     }
 
-    /** From the camera app. `false` means the user backed out without a photo. */
+    /** Back to "Take photo / Choose from gallery" - from the permission explanation, say. */
+    fun backToChoice() {
+        _state.value = SnapMealState.Capturing
+    }
+
+    /**
+     * From the camera app. `false` means the user backed out without a photo:
+     * back to the choice, not out of the flow - they may want the gallery instead.
+     */
     fun onCaptureResult(taken: Boolean) {
         val path = pendingPath ?: return
         if (!taken) {
-            discard()
+            photos.discard(path)
+            pendingPath = null
+            _state.value = SnapMealState.Capturing
             return
         }
+        // Taken this moment, so eaten this moment.
         val eatenAt = System.currentTimeMillis()
         estimate(path, eatenAt, mealTypeAt(eatenAt))
+    }
+
+    /**
+     * From the photo picker; null when nothing was picked. The photo is copied in
+     * first - the meal keeps its audit photo even if the original is deleted -
+     * and its EXIF time read before downscaling strips it. A lunch photo logged
+     * at 11pm is logged as lunch, on the day it was eaten.
+     */
+    fun onGalleryPicked(uri: Uri?) {
+        if (uri == null) return
+        viewModelScope.launch {
+            val path = try {
+                withContext(Dispatchers.IO) { photos.importFrom(uri) }.absolutePath
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.value = SnapMealState.Failed(null, "This photo couldn't be opened. Pick another one.")
+                return@launch
+            }
+            photos.discard(pendingPath)
+            pendingPath = path
+
+            val (dateTime, offset) = withContext(Dispatchers.IO) {
+                runCatching { photos.exifDateTime(path) }.getOrDefault(null to null)
+            }
+            val eatenAt = resolveEatenAt(
+                photoTakenAt = exifTakenAt(dateTime, offset, ZoneId.systemDefault()),
+                now = System.currentTimeMillis(),
+            )
+            estimate(path, eatenAt, mealTypeAt(eatenAt))
+        }
     }
 
     private fun estimate(path: String, eatenAt: Long, mealType: MealType) {
@@ -110,12 +146,33 @@ class SnapMealViewModel @Inject constructor(
                 )
                 is LlmResult.Failure -> SnapMealState.Failed(path, result.message)
             }
+            if (_state.value is SnapMealState.Review) checkAlreadyLogged(eatenAt)
         }
     }
 
     fun setMealType(mealType: MealType) {
         val review = _state.value as? SnapMealState.Review ?: return
-        if (!review.logging) _state.value = review.copy(mealType = mealType)
+        _state.value = review.withMealType(mealType)
+    }
+
+    /** The user moved the meal in time on the sheet. */
+    fun setEatenAt(millis: Long) {
+        val review = _state.value as? SnapMealState.Review ?: return
+        val moved = review.withEatenAt(millis, now = System.currentTimeMillis())
+        _state.value = moved
+        checkAlreadyLogged(moved.eatenAt)
+    }
+
+    /**
+     * Warns, never blocks: the flag is set only if the sheet still shows the same
+     * time when the answer comes back.
+     */
+    private fun checkAlreadyLogged(eatenAt: Long) {
+        viewModelScope.launch {
+            val duplicate = meals.hasPhotoMealAt(eatenAt)
+            val current = _state.value as? SnapMealState.Review ?: return@launch
+            if (current.eatenAt == eatenAt) _state.value = current.copy(alreadyLogged = duplicate)
+        }
     }
 
     fun stepDish(index: Int, up: Boolean) =
@@ -195,6 +252,5 @@ class SnapMealViewModel @Inject constructor(
 
     private companion object {
         const val KEY_PENDING_PATH = "pendingPhotoPath"
-        const val KEY_AUTO_LAUNCHED = "cameraAutoLaunched"
     }
 }

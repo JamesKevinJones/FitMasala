@@ -2,7 +2,9 @@ package com.kevinjones.fitmasala.presentation.snap
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.text.format.DateFormat
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,11 +24,18 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.RamenDining
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimeInput
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,9 +69,13 @@ import com.kevinjones.fitmasala.core.ui.components.SectionHeader
 import com.kevinjones.fitmasala.core.ui.theme.Fm
 import com.kevinjones.fitmasala.core.ui.theme.MaxContentWidth
 import com.kevinjones.fitmasala.core.ui.theme.fm
+import com.kevinjones.fitmasala.core.util.combineDateAndTime
+import com.kevinjones.fitmasala.core.util.pickerDateOf
 import com.kevinjones.fitmasala.data.local.entity.Macros
 import com.kevinjones.fitmasala.data.local.entity.MealType
 import com.kevinjones.fitmasala.data.remote.dto.confidenceToScore
+import java.time.Instant
+import java.time.ZoneId
 import kotlin.math.roundToInt
 
 /**
@@ -84,6 +97,17 @@ fun SnapMealScreen(
     val context = LocalContext.current
     /** Index of the dish being renamed; null when no dialog is open. */
     var renaming by rememberSaveable { mutableStateOf<Int?>(null) }
+    /** Changing when the meal was eaten: the date dialog, then the time dialog for [pickedDate]. */
+    var pickingDate by rememberSaveable { mutableStateOf(false) }
+    var pickedDate by rememberSaveable { mutableStateOf<Long?>(null) }
+
+    // The system photo picker: no storage permission, and only the chosen photo is shared.
+    val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        viewModel.onGalleryPicked(uri)
+    }
+    val openGallery: () -> Unit = {
+        pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
 
     val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
         viewModel.onCaptureResult(taken)
@@ -99,9 +123,6 @@ fun SnapMealScreen(
         if (granted) takePicture.launch(viewModel.prepareCapture()) else requestCamera.launch(Manifest.permission.CAMERA)
     }
 
-    LaunchedEffect(Unit) {
-        if (viewModel.shouldAutoLaunchCamera()) openCamera()
-    }
     LaunchedEffect(state) {
         when (val current = state) {
             SnapMealState.Cancelled -> onClose()
@@ -123,9 +144,15 @@ fun SnapMealScreen(
                     icon = Icons.Outlined.CameraAlt,
                     title = "Photograph your plate",
                     body = "Shoot from above with the whole plate in frame. A katori or roti " +
-                        "beside the food helps judge the portion.",
+                        "beside the food helps judge the portion. A photo from earlier is " +
+                        "logged at the time it was taken.",
                     modifier = itemModifier,
-                    action = { FmButton("Open camera", onClick = openCamera) },
+                    action = {
+                        Column(verticalArrangement = Arrangement.spacedBy(Fm.snug)) {
+                            FmButton("Take photo", onClick = openCamera, modifier = Modifier.fillMaxWidth())
+                            FmButtonTonal("Choose from gallery", onClick = openGallery, modifier = Modifier.fillMaxWidth())
+                        }
+                    },
                 )
             }
 
@@ -139,7 +166,8 @@ fun SnapMealScreen(
                         onRetry = openCamera,
                         retryLabel = "Allow camera",
                     )
-                    FmButtonGhost("Back", onClick = viewModel::discard)
+                    // The gallery needs no camera, so back is to the choice, not out.
+                    FmButtonGhost("Back", onClick = viewModel::backToChoice)
                 }
             }
 
@@ -165,6 +193,7 @@ fun SnapMealScreen(
                 onRename = { index -> renaming = index },
                 onRemove = viewModel::setDishRemoved,
                 onAddDish = viewModel::addDish,
+                onChangeTime = { pickingDate = true },
                 onLog = viewModel::logMeal,
                 onDiscard = viewModel::discard,
             )
@@ -184,6 +213,28 @@ fun SnapMealScreen(
     }
 
     val review = state as? SnapMealState.Review
+    if (review != null && pickingDate) {
+        EatenAtDateDialog(
+            eatenAt = review.eatenAt,
+            onPicked = { date ->
+                pickingDate = false
+                pickedDate = date
+            },
+            onDismiss = { pickingDate = false },
+        )
+    }
+    val date = pickedDate
+    if (review != null && date != null) {
+        EatenAtTimeDialog(
+            eatenAt = review.eatenAt,
+            onPicked = { hour, minute ->
+                viewModel.setEatenAt(combineDateAndTime(date, hour, minute, ZoneId.systemDefault()))
+                pickedDate = null
+            },
+            onDismiss = { pickedDate = null },
+        )
+    }
+
     val renamingDish = renaming?.let { review?.dishes?.getOrNull(it) }
     if (renamingDish != null) {
         RenameDishDialog(
@@ -210,13 +261,26 @@ private fun LazyListScope.reviewItems(
     onRename: (index: Int) -> Unit,
     onRemove: (index: Int, removed: Boolean) -> Unit,
     onAddDish: (description: String) -> Unit,
+    onChangeTime: () -> Unit,
     onLog: () -> Unit,
     onDiscard: () -> Unit,
 ) {
+    if (review.alreadyLogged) {
+        item { FmAdvisory(alreadyLoggedMessage(review.eatenAt), itemModifier) }
+    }
     items(review.advisories) { advisory -> FmAdvisory(advisory, itemModifier) }
 
     item {
         Column(itemModifier, verticalArrangement = Arrangement.spacedBy(Fm.tight)) {
+            // The day the meal lands on follows this time - a late log still counts
+            // on the day it was eaten.
+            FmListItem(
+                overline = "Eaten",
+                headline = eatenAtLabel(review.eatenAt),
+                trailing = {
+                    TextButton(onClick = onChangeTime, enabled = !review.logging) { Text("Change") }
+                },
+            )
             SectionHeader("Which meal was this?")
             FmSegmentedButtons(
                 options = MealType.entries,
@@ -388,6 +452,51 @@ private fun AddDishRow(
             Text(error, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
     }
+}
+
+/** Step one of changing when the meal was eaten. Future days can't be picked. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EatenAtDateDialog(eatenAt: Long, onPicked: (dateUtcMillis: Long) -> Unit, onDismiss: () -> Unit) {
+    val zone = ZoneId.systemDefault()
+    val today = pickerDateOf(System.currentTimeMillis(), zone)
+    val state = rememberDatePickerState(
+        initialSelectedDateMillis = pickerDateOf(eatenAt, zone),
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean = utcTimeMillis <= today
+        },
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = { state.selectedDateMillis?.let(onPicked) },
+                enabled = state.selectedDateMillis != null,
+            ) { Text("Next") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    ) {
+        DatePicker(state = state)
+    }
+}
+
+/** Step two: the time on that day. A time later than now is clamped to now by the model. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EatenAtTimeDialog(eatenAt: Long, onPicked: (hour: Int, minute: Int) -> Unit, onDismiss: () -> Unit) {
+    val local = Instant.ofEpochMilli(eatenAt).atZone(ZoneId.systemDefault())
+    val state = rememberTimePickerState(
+        initialHour = local.hour,
+        initialMinute = local.minute,
+        is24Hour = DateFormat.is24HourFormat(LocalContext.current),
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("What time did you eat?") },
+        text = { TimeInput(state = state) },
+        confirmButton = { TextButton(onClick = { onPicked(state.hour, state.minute) }) { Text("Set time") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 /** A removed dish stays in place as one line, so a mistaken tap is one tap to undo. */
