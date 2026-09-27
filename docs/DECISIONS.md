@@ -808,3 +808,11 @@ log label values, not Estimates.
   explicit in Settings rather than silent.
 - **Quality is unknown.** No benchmark says which model portions Indian home
   food better, so measure it on real meals before moving the default.
+
+Tickets:
+
+- #20 records the estimating model on each Dish.
+- #21 splits the transport out.
+- #22 adds Gemini estimates.
+- #23 runs the side-by-side comparison.
+- #24 moves the Chef to Gemini (optional).
