@@ -128,18 +128,21 @@ class PlanRepositoryImpl @Inject constructor(
             weights = weights,
             trend = trend,
             needsSetup = false,
+            startedAtDayEpoch = goal.startedAtDayEpoch,
+            sex = sex,
         )
     }
 
     override fun observeLatestMetric(): Flow<BodyMetricEntity?> = planDao.observeLatestMetric()
 
-    override suspend fun logWeight(weightKg: Double, waistCm: Double?, neckCm: Double?) {
+    override suspend fun logWeight(weightKg: Double, waistCm: Double?, neckCm: Double?, hipCm: Double?) {
         val now = System.currentTimeMillis()
         val goal = planDao.activeGoal()
 
         // Derive body fat only from a COMPLETE tape set. Otherwise leave it null
         // so the last real measurement stands, rather than being overwritten by
-        // a guess derived from partial input.
+        // a guess derived from partial input. The female formula also needs
+        // hip; navy() returns null without it.
         val bodyFat = if (waistCm != null && neckCm != null && goal != null) {
             BodyFatEstimator.navy(
                 sex = Sex.entries.firstOrNull { it.name == goal.sex } ?: Sex.MALE,
@@ -147,6 +150,7 @@ class PlanRepositoryImpl @Inject constructor(
                     heightCm = goal.heightCm,
                     neckCm = neckCm,
                     waistCm = waistCm,
+                    hipCm = hipCm,
                 ),
             )
         } else {
@@ -160,6 +164,7 @@ class PlanRepositoryImpl @Inject constructor(
                 weightKg = weightKg,
                 waistCm = waistCm,
                 neckCm = neckCm,
+                hipCm = hipCm,
                 bodyFatPercent = bodyFat,
                 bodyFatSource = bodyFat?.let { BodyFatSource.NAVY_TAPE.name },
             ),
@@ -175,6 +180,7 @@ class PlanRepositoryImpl @Inject constructor(
         startWeightKg: Double,
         startBodyFatPercent: Double,
         goalBodyFatPercent: Double,
+        tape: TapeMeasurements?,
     ) {
         planDao.startNewGoal(
             PlanGoalEntity(
@@ -191,7 +197,7 @@ class PlanRepositoryImpl @Inject constructor(
         )
         // Seed the first weigh-in, so a new plan has a one-point trend instead
         // of an empty chart on the day it is created.
-        logWeight(startWeightKg)
+        logWeight(startWeightKg, tape?.waistCm, tape?.neckCm, tape?.hipCm)
     }
 
     private fun sourceOf(raw: String?): BodyFatSource =

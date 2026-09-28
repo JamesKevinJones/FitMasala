@@ -10,6 +10,8 @@ import com.kevinjones.fitmasala.data.local.relation.FrequentMeal
 import com.kevinjones.fitmasala.domain.plan.AdaptiveState
 import com.kevinjones.fitmasala.domain.plan.PlanAdjustment
 import com.kevinjones.fitmasala.domain.plan.PlanProjection
+import com.kevinjones.fitmasala.domain.plan.Sex
+import com.kevinjones.fitmasala.domain.plan.TapeMeasurements
 import com.kevinjones.fitmasala.domain.plan.WeightEntry
 import kotlinx.coroutines.flow.Flow
 
@@ -83,12 +85,26 @@ data class PlanSnapshot(
     val trend: List<WeightEntry>,
     /** True until a goal has been set - the screens show onboarding instead. */
     val needsSetup: Boolean,
+    /** The day the active cut began, for "week N of the cut"; null without one. */
+    val startedAtDayEpoch: Long? = null,
+    /** The active cut's sex, so the weigh-in form knows whether hip is part of the tape. */
+    val sex: Sex? = null,
 )
 
 interface PlanRepository {
     fun observePlan(): Flow<PlanSnapshot>
     fun observeLatestMetric(): Flow<BodyMetricEntity?>
-    suspend fun logWeight(weightKg: Double, waistCm: Double? = null, neckCm: Double? = null)
+    suspend fun logWeight(
+        weightKg: Double,
+        waistCm: Double? = null,
+        neckCm: Double? = null,
+        hipCm: Double? = null,
+    )
+
+    /**
+     * Starts a new cut, superseding any active one, and seeds its first weigh-in -
+     * with the tape, when the start came from one, so that reading is on record.
+     */
     suspend fun startCut(
         sex: String,
         heightCm: Double,
@@ -98,6 +114,7 @@ interface PlanRepository {
         startWeightKg: Double,
         startBodyFatPercent: Double,
         goalBodyFatPercent: Double,
+        tape: TapeMeasurements? = null,
     )
 }
 

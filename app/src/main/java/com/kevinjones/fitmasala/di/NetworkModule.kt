@@ -6,7 +6,6 @@ import com.kevinjones.fitmasala.data.remote.AnthropicAuthInterceptor
 import com.kevinjones.fitmasala.data.remote.GeminiAuthInterceptor
 import com.kevinjones.fitmasala.data.remote.api.AnthropicApi
 import com.kevinjones.fitmasala.data.remote.api.GeminiApi
-import com.kevinjones.fitmasala.data.remote.AiService
 import com.kevinjones.fitmasala.data.remote.apiJson
 import dagger.Module
 import dagger.Provides
@@ -95,9 +94,4 @@ object NetworkModule {
             .build()
             .create(GeminiApi::class.java)
     }
-
-    @Provides
-    @Singleton
-    fun provideAiService(retrofit: Retrofit): AiService =
-        retrofit.create(AiService::class.java)
 }

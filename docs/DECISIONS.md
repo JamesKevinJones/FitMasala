@@ -871,3 +871,28 @@ with:
   test fixtures.
 - **Not reachable from the build container:** `ai.google.dev`'s prose docs.
 
+
+## 2026-09-28 — Cut setup and weigh-in: typed body fat wins, tape is all-or-nothing
+
+**Context.** The Plan tab's "Start a cut" and "Log weigh-in" were wired to
+hardcoded values (85 kg, 22%, 178 cm). Replacing them meant choosing how the
+least reliable input in the plan, body fat, gets in.
+
+**Decision.**
+
+- **Setup takes body fat two ways.** A typed estimate (smart scale, DEXA, an
+  honest guess) or tape measurements run through the Navy formula. The tape's
+  result is shown live before it is used.
+- **A typed estimate wins over the tape.** Someone who types a DEXA number
+  should not have it silently replaced. So the tape is only seeded into the
+  first weigh-in when it was the source; otherwise the seeded tape would become
+  the "latest measured" body fat and override the typed start.
+- **A partial tape is an error, not a drop.** `logWeight` already ignores
+  an incomplete tape set. The form now says which field is missing instead of
+  storing a waist that never becomes a body fat. Hip joins the tape for the
+  female formula, which needs it and previously never received it.
+- **The weigh-in is not prefilled.** The last reading appears as a hint only;
+  a prefilled number gets confirmed without stepping on the scale, and the
+  trend is only as good as its daily inputs.
+- **Form rules are plain Kotlin** (`PlanForms.kt`) with JVM tests, like
+  `SnapMealModel`; the screen only draws them.

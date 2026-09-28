@@ -2,6 +2,7 @@ package com.kevinjones.fitmasala.presentation.plan
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kevinjones.fitmasala.domain.plan.BodyFatSource
 import com.kevinjones.fitmasala.domain.repository.PlanRepository
 import com.kevinjones.fitmasala.domain.repository.PlanSnapshot
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,28 +24,23 @@ class PlanViewModel @Inject constructor(
             initialValue = PlanSnapshot(null, null, null, emptyList(), emptyList(), needsSetup = true),
         )
 
-    fun logWeight(kg: Double, waistCm: Double? = null, neckCm: Double? = null) =
-        viewModelScope.launch { plans.logWeight(kg, waistCm, neckCm) }
+    fun logWeighIn(weighIn: WeighIn) = viewModelScope.launch {
+        plans.logWeight(weighIn.weightKg, weighIn.waistCm, weighIn.neckCm, weighIn.hipCm)
+    }
 
-    fun startCut(
-        sex: String,
-        heightCm: Double,
-        ageYears: Int,
-        activityLevel: String,
-        aggression: String,
-        startWeightKg: Double,
-        startBodyFatPercent: Double,
-        goalBodyFatPercent: Double = 12.0,
-    ) = viewModelScope.launch {
+    fun startCut(setup: CutSetup) = viewModelScope.launch {
         plans.startCut(
-            sex = sex,
-            heightCm = heightCm,
-            ageYears = ageYears,
-            activityLevel = activityLevel,
-            aggression = aggression,
-            startWeightKg = startWeightKg,
-            startBodyFatPercent = startBodyFatPercent,
-            goalBodyFatPercent = goalBodyFatPercent,
+            sex = setup.sex.name,
+            heightCm = setup.heightCm,
+            ageYears = setup.ageYears,
+            activityLevel = setup.activity.name,
+            aggression = setup.aggression.name,
+            startWeightKg = setup.weightKg,
+            startBodyFatPercent = setup.bodyFatPercent,
+            goalBodyFatPercent = setup.goalBodyFatPercent,
+            // Only a tape-derived start seeds the tape. A typed estimate wins in
+            // the form, and a seeded tape would override it on the first reading.
+            tape = setup.tape.takeIf { setup.bodyFatSource == BodyFatSource.NAVY_TAPE },
         )
     }
 }
