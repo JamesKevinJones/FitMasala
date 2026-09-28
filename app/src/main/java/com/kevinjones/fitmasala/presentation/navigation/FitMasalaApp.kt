@@ -41,6 +41,13 @@ import kotlinx.coroutines.launch
 import androidx.compose.runtime.collectAsState
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.kevinjones.fitmasala.core.util.DateKeys
+import com.kevinjones.fitmasala.presentation.plan.PlanViewModel
+import com.kevinjones.fitmasala.presentation.plan.cutWeek
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import com.kevinjones.fitmasala.presentation.chef.AiChefScreen
 import com.kevinjones.fitmasala.presentation.dashboard.DashboardScreen
 import com.kevinjones.fitmasala.presentation.plan.PlanScreen
@@ -71,7 +78,10 @@ fun FitMasalaApp(
     windowSizeClass: WindowSizeClass,
     settingsViewModel: SettingsViewModel,
     modifier: Modifier = Modifier,
+    // Activity-scoped, for the app bar's "week N of the cut" line only.
+    planViewModel: PlanViewModel = hiltViewModel(),
 ) {
+    val plan by planViewModel.state.collectAsStateWithLifecycle()
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -114,13 +124,32 @@ fun FitMasalaApp(
         destination = TopLevelDestination.DASHBOARD
     }
 
+    // The same move the navigation bar and rail make, so a FAB shortcut lands
+    // on a tab with the same back-stack behaviour as tapping the tab itself.
+    fun openTab(target: TopLevelDestination) {
+        destination = target
+        fabExpanded = false
+        navController.navigate(target.route) {
+            popUpTo(navController.graph.startDestinationId) { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
     val quickActions = listOf(
         FabAction("Snap a meal", Icons.Filled.CameraAlt) {
             fabExpanded = false
             navController.navigate(Routes.PHOTO_CAPTURE) { launchSingleTop = true }
         },
-        FabAction("Ask the chef", Icons.Filled.Restaurant) { },
-        FabAction("Start a workout", Icons.Filled.FitnessCenter) { },
+        FabAction("Ask the chef", Icons.Filled.Restaurant) {
+            fabExpanded = false
+            navController.navigate(Routes.AI_CHEF) { launchSingleTop = true }
+        },
+        // Train, not a blank session: a workout starts from a routine there,
+        // and an empty "New Workout" row would be a session nobody meant to log.
+        FabAction("Start a workout", Icons.Filled.FitnessCenter) {
+            openTab(TopLevelDestination.TRAIN)
+        },
     )
 
     Row(modifier.fillMaxSize()) {
@@ -128,7 +157,7 @@ fun FitMasalaApp(
             FmNavigationRail(
                 destinations = destinations,
                 current = destination,
-                onSelect = { destination = it },
+                onSelect = { openTab(it) },
                 modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars),
             )
         }
@@ -145,7 +174,11 @@ fun FitMasalaApp(
                         snapping -> "Snap a meal"
                         else -> titleFor(destination)
                     },
-                    overline = if (showSettings || snapping) null else overlineFor(destination),
+                    overline = if (showSettings || snapping) {
+                        null
+                    } else {
+                        overlineFor(destination, cutWeek(plan.startedAtDayEpoch, DateKeys.today()))
+                    },
                     scrollBehavior = scrollBehavior,
                     actions = {
                         FmBarAction(
@@ -164,17 +197,7 @@ fun FitMasalaApp(
                     FmNavigationBar(
                         destinations = destinations,
                         current = destination,
-                        onSelect = {
-                            destination = it
-                            fabExpanded = false
-                            navController.navigate(it.route) {
-                                popUpTo(navController.graph.startDestinationId) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
+                        onSelect = { openTab(it) },
                     )
                 }
             },
@@ -218,9 +241,9 @@ private fun titleFor(destination: TopLevelDestination) = when (destination) {
     TopLevelDestination.PLAN -> "Plan"
 }
 
-private fun overlineFor(destination: TopLevelDestination) = when (destination) {
-    TopLevelDestination.DASHBOARD -> "Thursday, 22 August"
+private fun overlineFor(destination: TopLevelDestination, week: Int?): String? = when (destination) {
+    TopLevelDestination.DASHBOARD -> LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, d MMMM"))
     TopLevelDestination.CHEF -> "What's in my dabba"
     TopLevelDestination.TRAIN -> "Push · Pull · Legs"
-    TopLevelDestination.PLAN -> "Week 6 of the cut"
+    TopLevelDestination.PLAN -> week?.let { "Week $it of the cut" }
 }
