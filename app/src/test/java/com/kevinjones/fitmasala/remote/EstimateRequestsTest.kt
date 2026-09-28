@@ -1,10 +1,10 @@
 package com.kevinjones.fitmasala.remote
 
 import com.kevinjones.fitmasala.data.remote.EstimateRequests
-import com.kevinjones.fitmasala.data.remote.dto.RequestContentBlock
 import com.kevinjones.fitmasala.data.remote.prompt.RecipeSchemas
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -27,16 +27,16 @@ class EstimateRequestsTest {
 
     @Test
     fun aTypedDishIsTextOnly() {
-        val block = text.message.content.single() as RequestContentBlock.Text
-        assertEquals("user", text.message.role)
-        assertTrue(block.text.startsWith("Estimate the nutrition of: 1 tsp ghee"))
-        assertTrue(block.text.contains("part of my lunch"))
+        assertNull(text.imageJpegBase64)
+        assertTrue(text.text.startsWith("Estimate the nutrition of: 1 tsp ghee"))
+        assertTrue(text.text.contains("part of my lunch"))
     }
 
+    /** The image-first wire ordering is the backend's; see `AnthropicBackendTest`. */
     @Test
-    fun aPhotoIsStillImageFirstThenTheQuestion() {
-        assertTrue(photo.message.content[0] is RequestContentBlock.Image)
-        assertTrue(photo.message.content[1] is RequestContentBlock.Text)
+    fun aPhotoCarriesTheImageAndTheQuestion() {
+        assertEquals("AAAA", photo.imageJpegBase64)
+        assertTrue(photo.text.contains("lunch"))
     }
 
     @Test

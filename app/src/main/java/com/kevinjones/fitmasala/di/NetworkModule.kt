@@ -3,16 +3,16 @@ package com.kevinjones.fitmasala.di
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.kevinjones.fitmasala.BuildConfig
 import com.kevinjones.fitmasala.data.remote.AnthropicAuthInterceptor
+import com.kevinjones.fitmasala.data.remote.AnthropicBackend
+import com.kevinjones.fitmasala.data.remote.LlmBackend
 import com.kevinjones.fitmasala.data.remote.api.AnthropicApi
 import com.kevinjones.fitmasala.data.remote.AiService
-import com.kevinjones.fitmasala.data.remote.dto.ResponseContentBlock
+import com.kevinjones.fitmasala.data.remote.apiJson
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.modules.SerializersModule
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -24,26 +24,9 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    @OptIn(ExperimentalSerializationApi::class)
     @Provides
     @Singleton
-    fun provideJson(): Json = Json {
-        ignoreUnknownKeys = true
-        explicitNulls = false
-        encodeDefaults = true
-
-        /**
-         * `ignoreUnknownKeys` covers unknown FIELDS. It does nothing for an
-         * unknown polymorphic discriminator - a content block type added to the
-         * API after this build would throw and take the whole response with it.
-         * This maps anything unrecognised onto a block the app ignores.
-         */
-        serializersModule = SerializersModule {
-            polymorphicDefaultDeserializer(ResponseContentBlock::class) {
-                ResponseContentBlock.Unknown.serializer()
-            }
-        }
-    }
+    fun provideJson(): Json = apiJson()
 
     @Provides
     @Singleton
@@ -83,6 +66,10 @@ object NetworkModule {
     @Singleton
     fun provideAnthropicApi(retrofit: Retrofit): AnthropicApi =
         retrofit.create(AnthropicApi::class.java)
+
+    /** The provider every LLM call goes through. Anthropic is the only one today. */
+    @Provides
+    fun provideLlmBackend(anthropic: AnthropicBackend): LlmBackend = anthropic
 
     @Provides
     @Singleton
