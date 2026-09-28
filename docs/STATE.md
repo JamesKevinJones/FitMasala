@@ -81,15 +81,13 @@ solver, plan engine) and `domain/progress/` (streaks, XP), pure Kotlin.
 
 **Screens** - Today (meals, plan target, streak, sessions), Chef + AI Chef,
 Snap a meal (camera or gallery, review sheet, per-Dish editing, typed Dishes,
-failure paths, log by hand), Train + Active Session, Plan (setup form, weigh-in
+failure paths, log by hand), Log a meal (FAB: one typed dish, MANUAL not an
+Estimate, movable time), Train + Active Session, Plan (setup form, weigh-in
 sheet with optional tape, trend chart, projection), Settings (theme, AI
 provider, keys, rest timer).
 
 ## Known issues
 
-- **Log by hand only exists inside Snap a meal** - there is no standalone
-  manual-entry screen; `MealRepository.logManual` is called only from the
-  failure path.
 - **A cut cannot be edited once started** - "Start a cut" is only offered
   while no goal exists. Starting over means clearing app data.
 - **The Train overline is static text** ("Push · Pull · Legs"), as is the
@@ -98,9 +96,9 @@ provider, keys, rest timer).
 ## Next
 
 After the steps above, the project is feature-complete for its brief. Likely
-follow-ups, none started: a standalone "log a meal" form, editing or
-restarting a cut from the Plan tab, and barcode lookup against Open Food Facts
-(DECISIONS 2026-09-27 marks it as a separate, later feature).
+follow-ups, none started: editing or restarting a cut from the Plan tab, and
+barcode lookup against Open Food Facts (DECISIONS 2026-09-27 marks it as a
+separate, later feature).
 
 ## Device automation - do not repeat
 

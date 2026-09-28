@@ -228,7 +228,12 @@ fun SnapMealScreen(
 
             is SnapMealState.ManualEntry -> item {
                 ManualDishForm(
-                    entry = current,
+                    eatenAt = current.eatenAt,
+                    mealType = current.mealType,
+                    saving = current.saving,
+                    saveError = current.saveError,
+                    intro = "From a label, a recipe or your own judgement. Logged at the time below" +
+                        if (current.photoPath != null) ", with the photo kept." else ".",
                     modifier = itemModifier,
                     onMealType = viewModel::setMealType,
                     onSave = viewModel::saveManual,
@@ -523,14 +528,23 @@ private fun FailedCard(
  * One dish and its numbers, typed. Portion in Indian units first, grams last;
  * macros optional. Logged as a manual entry, so it carries no estimate badge -
  * and the Atwater check still warns about a mistyped digit before it is saved.
+ *
+ * Shared by Snap a meal's "Log by hand" and the standalone "Log a meal" screen,
+ * which also passes [onChangeTime] so the time can be moved.
  */
 @Composable
-private fun ManualDishForm(
-    entry: SnapMealState.ManualEntry,
+internal fun ManualDishForm(
+    eatenAt: Long,
+    mealType: MealType,
+    saving: Boolean,
+    saveError: String?,
+    intro: String,
     modifier: Modifier,
     onMealType: (MealType) -> Unit,
     onSave: (ManualDishInput) -> Unit,
     onDiscard: () -> Unit,
+    onChangeTime: (() -> Unit)? = null,
+    title: String = "Log by hand",
 ) {
     var name by rememberSaveable { mutableStateOf("") }
     var quantity by rememberSaveable { mutableStateOf(1.0) }
@@ -545,27 +559,34 @@ private fun ManualDishForm(
     val input = ManualDishInput(name, quantity, unit, calories, protein, carbs, fat)
     val problems = input.problems()
     val advisory = input.advisory()
-    val enabled = !entry.saving
+    val enabled = !saving
     val numberKeyboard = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next)
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Fm.gap)) {
         Column(verticalArrangement = Arrangement.spacedBy(Fm.hair)) {
-            Text("Log by hand", style = MaterialTheme.typography.titleMedium)
+            Text(title, style = MaterialTheme.typography.titleMedium)
             Text(
-                "From a label, a recipe or your own judgement. Logged at the time below" +
-                    if (entry.photoPath != null) ", with the photo kept." else ".",
+                intro,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.fm.textSecondary,
             )
         }
 
-        FmListItem(overline = "Eaten", headline = eatenAtLabel(entry.eatenAt))
+        FmListItem(
+            overline = "Eaten",
+            headline = eatenAtLabel(eatenAt),
+            trailing = if (onChangeTime != null) {
+                { TextButton(onClick = onChangeTime, enabled = enabled) { Text("Change") } }
+            } else {
+                null
+            },
+        )
 
         Column(verticalArrangement = Arrangement.spacedBy(Fm.tight)) {
             SectionHeader("Which meal was this?")
             FmSegmentedButtons(
                 options = MealType.entries,
-                selected = entry.mealType,
+                selected = mealType,
                 onSelect = onMealType,
                 label = { it.label() },
             )
@@ -645,13 +666,13 @@ private fun ManualDishForm(
                 Text(problem, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
         }
-        if (entry.saveError != null) {
-            Text(entry.saveError, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+        if (saveError != null) {
+            Text(saveError, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(Fm.snug)) {
             FmButton(
-                text = if (entry.saving) "Logging…" else "Log dish",
+                text = if (saving) "Logging…" else "Log dish",
                 onClick = {
                     attempted = true
                     if (problems.isEmpty()) onSave(input)
@@ -667,7 +688,7 @@ private fun ManualDishForm(
 /** Step one of changing when the meal was eaten. Future days can't be picked. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EatenAtDateDialog(eatenAt: Long, onPicked: (dateUtcMillis: Long) -> Unit, onDismiss: () -> Unit) {
+internal fun EatenAtDateDialog(eatenAt: Long, onPicked: (dateUtcMillis: Long) -> Unit, onDismiss: () -> Unit) {
     val zone = ZoneId.systemDefault()
     val today = pickerDateOf(System.currentTimeMillis(), zone)
     val state = rememberDatePickerState(
@@ -693,7 +714,7 @@ private fun EatenAtDateDialog(eatenAt: Long, onPicked: (dateUtcMillis: Long) -> 
 /** Step two: the time on that day. A time later than now is clamped to now by the model. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EatenAtTimeDialog(eatenAt: Long, onPicked: (hour: Int, minute: Int) -> Unit, onDismiss: () -> Unit) {
+internal fun EatenAtTimeDialog(eatenAt: Long, onPicked: (hour: Int, minute: Int) -> Unit, onDismiss: () -> Unit) {
     val local = Instant.ofEpochMilli(eatenAt).atZone(ZoneId.systemDefault())
     val state = rememberTimePickerState(
         initialHour = local.hour,

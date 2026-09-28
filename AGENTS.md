@@ -80,7 +80,7 @@ domain/plan        Cutting-plan engine: body fat, weight trend, adaptive TDEE,
 domain/repository  Repository interfaces
 domain/usecase     Single-responsibility use cases
 di                 Hilt modules (DatabaseModule, NetworkModule, RepositoryModule)
-presentation/      navigation/ dashboard/ chef/ workout/{builder,session,history}/ settings/
+presentation/      navigation/ dashboard/ chef/ snap/ log/ plan/ workout/ settings/
 ```
 
 ## How the pieces connect

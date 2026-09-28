@@ -74,6 +74,7 @@ object Routes {
     const val RECIPE_DETAIL = "recipe/{recipeId}"
     const val ACTIVE_SESSION = "session/{sessionId}"
     const val PHOTO_CAPTURE = "capture"
+    const val LOG_MEAL = "log_meal"
 
     fun recipeDetail(id: Long) = "recipe/$id"
     fun activeSession(id: Long) = "session/$id"

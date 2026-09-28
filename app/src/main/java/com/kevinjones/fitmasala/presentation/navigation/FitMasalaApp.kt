@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -94,6 +95,7 @@ fun FitMasalaApp(
     // so back on Settings silently did nothing.
     val showSettings = currentRoute == Routes.SETTINGS
     val snapping = currentRoute == Routes.PHOTO_CAPTURE
+    val loggingMeal = currentRoute == Routes.LOG_MEAL
     var destination by remember(currentRoute) {
         mutableStateOf(
             TopLevelDestination.entries.find { it.route == currentRoute }
@@ -141,6 +143,11 @@ fun FitMasalaApp(
             fabExpanded = false
             navController.navigate(Routes.PHOTO_CAPTURE) { launchSingleTop = true }
         },
+        // For a label or a dish whose numbers you know - no photo, no estimate.
+        FabAction("Log a meal", Icons.Filled.EditNote) {
+            fabExpanded = false
+            navController.navigate(Routes.LOG_MEAL) { launchSingleTop = true }
+        },
         FabAction("Ask the chef", Icons.Filled.Restaurant) {
             fabExpanded = false
             navController.navigate(Routes.AI_CHEF) { launchSingleTop = true }
@@ -172,9 +179,10 @@ fun FitMasalaApp(
                     title = when {
                         showSettings -> "Settings"
                         snapping -> "Snap a meal"
+                        loggingMeal -> "Log a meal"
                         else -> titleFor(destination)
                     },
-                    overline = if (showSettings || snapping) {
+                    overline = if (showSettings || snapping || loggingMeal) {
                         null
                     } else {
                         overlineFor(destination, cutWeek(plan.startedAtDayEpoch, DateKeys.today()))
@@ -204,8 +212,8 @@ fun FitMasalaApp(
             floatingActionButton = {
                 // No FAB on Settings: a FAB is the screen's primary action, and
                 // Settings has none. It was also physically covering a switch.
-                // None while snapping either: "Log meal" is that screen's action.
-                if (!showSettings && !snapping) {
+                // None while snapping or logging either: "Log dish" is that screen's action.
+                if (!showSettings && !snapping && !loggingMeal) {
                     FmExpandableFab(
                         actions = quickActions,
                         expanded = fabExpanded,
