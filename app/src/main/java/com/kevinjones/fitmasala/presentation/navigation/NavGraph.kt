@@ -90,6 +90,9 @@ fun FitMasalaNavGraph(
                 onThemeMode = settingsViewModel::setThemeMode,
                 onApiKey = settingsViewModel::setApiKey,
                 onClearApiKey = settingsViewModel::clearApiKey,
+                onProvider = settingsViewModel::setProvider,
+                onGeminiApiKey = settingsViewModel::setGeminiApiKey,
+                onClearGeminiApiKey = settingsViewModel::clearGeminiApiKey,
                 onRestSeconds = settingsViewModel::setRestSeconds,
                 onRestVibrate = settingsViewModel::setRestVibrate,
                 contentPadding = screenContentPadding(

@@ -35,21 +35,29 @@ enum class ThemeMode(val label: String, val description: String) {
 }
 
 /**
- * Which provider the pasted key belongs to.
+ * Who estimates meals - photos and typed dishes. Each provider has its own key.
+ * The Chef stays on Anthropic for now (#24).
  *
- * Single-valued on purpose. The original brief said "Anthropic/OpenAI", but a
- * selectable OPENAI with no implementation behind it is a stub that fails at
- * runtime - the enum stays as the seam a second provider would slot into.
+ * The app never switches between them on its own: a change of estimator shifts
+ * the bias `AdaptiveTdee` relies on being consistent, so it is always the user's
+ * choice. See DECISIONS 2026-09-27, Gemini as an optional second estimator.
  */
-enum class LlmProvider(val label: String) {
-    ANTHROPIC("Anthropic"),
+enum class LlmProvider(val label: String, val description: String) {
+    ANTHROPIC("Claude", "Anthropic, with your Anthropic key"),
+    GEMINI("Gemini", "Google, with your Gemini API key"),
 }
 
 /** Everything on the Settings screen, as one immutable snapshot. */
 data class AppSettings(
+    /** The Anthropic key. */
     val apiKey: String = "",
+    /** Who estimates meals. */
     val provider: LlmProvider = LlmProvider.ANTHROPIC,
+    /** Anthropic model override; blank means the shipped default. */
     val modelId: String = "",
+    val geminiApiKey: String = "",
+    /** Gemini model override; blank means the shipped default. */
+    val geminiModelId: String = "",
     val dailyCalorieTarget: Int = 2200,
     val proteinTargetG: Int = 150,
     val carbTargetG: Int = 250,
@@ -61,12 +69,17 @@ data class AppSettings(
     val hasApiKey: Boolean get() = apiKey.isNotBlank()
 
     /** Never render the key itself — this is what Settings shows once it's saved. */
-    val maskedApiKey: String
-        get() = when {
-            apiKey.isBlank() -> ""
-            apiKey.length <= 8 -> "•".repeat(apiKey.length)
-            else -> apiKey.take(4) + "•".repeat(12) + apiKey.takeLast(4)
-        }
+    val maskedApiKey: String get() = mask(apiKey)
+
+    val hasGeminiApiKey: Boolean get() = geminiApiKey.isNotBlank()
+
+    val maskedGeminiApiKey: String get() = mask(geminiApiKey)
+
+    private fun mask(key: String): String = when {
+        key.isBlank() -> ""
+        key.length <= 8 -> "•".repeat(key.length)
+        else -> key.take(4) + "•".repeat(12) + key.takeLast(4)
+    }
 }
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "fitmasala_settings")
@@ -93,6 +106,8 @@ class SettingsStore @Inject constructor(
         val API_KEY = stringPreferencesKey("api_key")
         val PROVIDER = stringPreferencesKey("provider")
         val MODEL_ID = stringPreferencesKey("model_id")
+        val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
+        val GEMINI_MODEL_ID = stringPreferencesKey("gemini_model_id")
         val CALORIE_TARGET = intPreferencesKey("calorie_target")
         val PROTEIN_TARGET = intPreferencesKey("protein_target")
         val CARB_TARGET = intPreferencesKey("carb_target")
@@ -119,6 +134,8 @@ class SettingsStore @Inject constructor(
                 apiKey = prefs[Keys.API_KEY].orEmpty(),
                 provider = provider,
                 modelId = prefs[Keys.MODEL_ID].orEmpty(),
+                geminiApiKey = prefs[Keys.GEMINI_API_KEY].orEmpty(),
+                geminiModelId = prefs[Keys.GEMINI_MODEL_ID].orEmpty(),
                 dailyCalorieTarget = prefs[Keys.CALORIE_TARGET] ?: 2200,
                 proteinTargetG = prefs[Keys.PROTEIN_TARGET] ?: 150,
                 carbTargetG = prefs[Keys.CARB_TARGET] ?: 250,
@@ -141,6 +158,12 @@ class SettingsStore @Inject constructor(
     suspend fun setProvider(provider: LlmProvider) = edit { it[Keys.PROVIDER] = provider.name }
 
     suspend fun setModelId(modelId: String) = edit { it[Keys.MODEL_ID] = modelId.trim() }
+
+    suspend fun setGeminiApiKey(key: String) = edit { it[Keys.GEMINI_API_KEY] = key.trim() }
+
+    suspend fun clearGeminiApiKey() = edit { it.remove(Keys.GEMINI_API_KEY) }
+
+    suspend fun setGeminiModelId(modelId: String) = edit { it[Keys.GEMINI_MODEL_ID] = modelId.trim() }
 
     suspend fun setMacroTargets(calories: Int, proteinG: Int, carbsG: Int, fatG: Int) = edit {
         it[Keys.CALORIE_TARGET] = calories

@@ -340,6 +340,10 @@ The model is overridable in Settings; this is only what ships.
 
 ## 2026-08-19 — Provider enum is single-valued
 
+**Superseded 2026-09-28** by Gemini as a second estimator (#22): `LlmProvider`
+now has `ANTHROPIC` and `GEMINI`, both fully implemented. The rule below - no
+selectable provider without a real implementation behind it - still holds.
+
 **Decision:** `LlmProvider` has only `ANTHROPIC`. The OpenAI branch was removed.
 
 **Why:** The original brief said "Anthropic/OpenAI", but a provider selectable in
@@ -816,3 +820,54 @@ Tickets:
 - #22 adds Gemini estimates.
 - #23 runs the side-by-side comparison.
 - #24 moves the Chef to Gemini (optional).
+
+---
+
+## 2026-09-28 — Gemini on the wire: responseSchema, its own client, an alias model
+
+**Decision:** Gemini estimates (#22) call `v1beta/models/{model}:generateContent`
+with:
+
+- **The key in `x-goog-api-key`**, on a Gemini-only OkHttp client, so neither
+  provider's key can ride on the other's request.
+- **JSON enforced by `generationConfig.responseSchema`:** the typed `Schema`
+  object, converted by `GeminiSchema` from the same `RecipeSchemas` Anthropic
+  gets.
+- **A default model of `gemini-flash-latest`.** The Chef stays on Anthropic
+  until #24.
+
+**Why these choices:**
+
+- **`responseSchema`, not a JSON-Schema field.** The API offers three
+  schema-constrained outputs:
+  - `_responseJsonSchema`, which is deprecated.
+  - `responseFormat.text.schema`, which is new and untyped, with its supported
+    subset undocumented.
+  - `responseSchema`, which is typed field by field.
+
+  Only the last lets a JVM test prove every emitted key is one Gemini accepts.
+  The conversion upper-cases types, turns `["x","null"]` into `nullable`, adds
+  `format: "enum"` and `propertyOrdering`, drops `additionalProperties` (no such
+  field) and throws on anything else.
+- **An alias model.** Google's current SDK READMEs name only
+  `gemini-flash-latest`, and no pinned name could be verified from here. The
+  alias can move under the app. That is tolerable because each Dish records the
+  concrete `modelVersion` the API reports (#20), so a silent change is visible
+  in the log. A model can be pinned in Settings.
+- **A bad key is a 400, not a 401.** The live API answers an invalid key with
+  400 `INVALID_ARGUMENT` and `ErrorInfo.reason = API_KEY_INVALID`, so that
+  reason maps to `Unauthorized` alongside 401/403.
+  - `RESOURCE_EXHAUSTED` → `RateLimited`, using `RetryInfo.retryDelay`.
+  - Safety-type finish or block reasons → `Refused`.
+  - `MAX_TOKENS` → `Truncated`.
+
+**Sources, 2026-09-28:**
+
+- **Wire shapes and names:** the Gemini API discovery document, revision
+  20260927. It covers the endpoint, field names, `Schema`'s fields and types,
+  and the finish and block reasons.
+- **Key header:** the official `js-genai` SDK (`x-goog-api-key`).
+- **Error bodies:** two real error responses from the live API, committed as
+  test fixtures.
+- **Not reachable from the build container:** `ai.google.dev`'s prose docs.
+

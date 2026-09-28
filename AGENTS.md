@@ -164,17 +164,21 @@ per decision. Read it before reversing something that looks arbitrary.
 - **Gamification stays tied to the maths.** A streak day requires the same two
   Meals `AdaptiveTdee` needs (distinct meal types, not dishes - see
   `CONTEXT.md`). Never award XP for a bigger deficit.
-- **The API key never leaves the device** except in the `x-api-key` header of the
-  user's own LLM request. Never log it. Backups are disabled app-wide in the
-  manifest for the same reason.
+- **API keys never leave the device** except each in its own provider's header
+  on the user's own LLM request: `x-api-key` for Anthropic, `x-goog-api-key` for
+  Gemini - never in a URL. Each provider has its own OkHttp client, so one key
+  can never ride on the other's request. Never log a key. Backups are disabled
+  app-wide in the manifest for the same reason.
 - **Room schemas are exported** to `app/schemas/` and committed, so migrations
   can be diffed. Bump `version` and write a `Migration` — never
   `fallbackToDestructiveMigration()`, since the meal and workout history is the
   whole point of the app.
-- **Macro JSON comes from `output_config.format` with a schema in
-  `RecipeSchemas`** — never from prompt instructions, and NEVER from assistant
-  prefill, which is a 400 on Opus 5. Schemas and the DTOs in `dto/CulinaryDtos.kt`
-  must change together.
+- **Macro JSON is schema-enforced by the provider, from the one schema in
+  `RecipeSchemas`**: `output_config.format` on Anthropic, and on Gemini
+  `generationConfig.responseSchema` converted by `GeminiSchema` - never written
+  twice. Never from prompt instructions, and NEVER from assistant prefill, which
+  is a 400 on Opus 5. Schemas and the DTOs in `dto/CulinaryDtos.kt` must change
+  together.
 - **A `Success` with advisories is not a clean result.** The Atwater check can
   flag macros that are schema-valid and nutritionally wrong; the UI must show
   advisories rather than logging the meal silently.

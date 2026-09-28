@@ -12,17 +12,30 @@ import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Recipes go to [recipes] (Anthropic, until #24); photo and typed-dish
+ * estimates go to [estimates], the provider chosen in Settings.
+ */
 @Singleton
-class CulinaryLlmClient @Inject constructor(
-    private val backend: LlmBackend,
+class CulinaryLlmClient internal constructor(
+    private val recipes: LlmBackend,
+    private val estimates: LlmBackend,
     private val json: Json,
 ) {
+
+    @Inject
+    constructor(recipes: AnthropicBackend, estimates: EstimateBackend, json: Json) :
+        this(recipes as LlmBackend, estimates as LlmBackend, json)
+
+    /** One backend for everything - tests. */
+    internal constructor(backend: LlmBackend, json: Json) : this(backend, backend, json)
 
     suspend fun generateRecipe(
         ingredients: String,
         mealType: String? = null,
         servings: Int = 1,
     ): LlmResult<RecipeDto> = call(
+        backend = recipes,
         request = LlmRequest(
             system = CulinaryPrompts.RECIPE_SYSTEM,
             text = CulinaryPrompts.pantryRequest(ingredients, mealType, servings),
@@ -55,6 +68,7 @@ class CulinaryLlmClient @Inject constructor(
 
     private suspend fun estimate(request: LlmRequest, noFood: String): LlmResult<PhotoEstimateDto> =
         call(
+            backend = estimates,
             request = request,
             deserialize = { json.decodeFromString<PhotoEstimateDto>(it) },
             validate = { dto -> validatePhoto(dto, noFood) },
@@ -118,6 +132,7 @@ class CulinaryLlmClient @Inject constructor(
      * provider-neutral half: parse the JSON into [T] and attach advisories.
      */
     private suspend fun <T> call(
+        backend: LlmBackend,
         request: LlmRequest,
         deserialize: (String) -> T,
         validate: (T) -> List<String>,
