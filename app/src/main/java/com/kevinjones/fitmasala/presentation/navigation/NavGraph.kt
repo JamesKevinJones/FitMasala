@@ -13,6 +13,7 @@ import com.kevinjones.fitmasala.core.ui.theme.screenContentPadding
 import com.kevinjones.fitmasala.presentation.chef.AiChefScreen
 import com.kevinjones.fitmasala.presentation.chef.ChefScreen
 import com.kevinjones.fitmasala.presentation.dashboard.DashboardScreen
+import com.kevinjones.fitmasala.presentation.log.LogMealScreen
 import com.kevinjones.fitmasala.presentation.plan.PlanScreen
 import com.kevinjones.fitmasala.presentation.settings.SettingsScreen
 import com.kevinjones.fitmasala.presentation.settings.SettingsViewModel
@@ -54,6 +55,19 @@ fun FitMasalaNavGraph(
                 },
                 // Pushed on top, so back returns to the failed estimate and its photo.
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+            )
+        }
+        composable(Routes.LOG_MEAL) {
+            LogMealScreen(
+                contentPadding = screenContentPadding(
+                    innerPadding,
+                    windowSizeClass.horizontalMargin(),
+                ),
+                onClose = { navController.popBackStack() },
+                onLogged = { summary ->
+                    onMessage(summary)
+                    navController.popBackStack()
+                },
             )
         }
         composable(Routes.AI_CHEF) {
