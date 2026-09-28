@@ -122,6 +122,8 @@ class MealRepositoryImpl @Inject constructor(
         fatG: Double,
         eatenAt: Long,
         photoPath: String?,
+        fiberG: Double,
+        source: MealSource,
     ): Long {
         return dao.insert(
             LoggedMealEntity(
@@ -131,10 +133,10 @@ class MealRepositoryImpl @Inject constructor(
                 dayEpoch = DateKeys.dayEpochOf(eatenAt),
                 portionQuantity = portionQuantity,
                 portionUnit = portionUnit,
-                macros = Macros(calories, proteinG, carbsG, fatG),
-                // Typed by hand from a label or a scale: not an estimate.
+                macros = Macros(calories, proteinG, carbsG, fatG, fiberG),
+                // Typed by hand, or a packaged food's label: not an estimate.
                 isAiEstimate = false,
-                source = MealSource.MANUAL,
+                source = source,
                 photoPath = photoPath,
             ),
         )

@@ -70,5 +70,8 @@ enum class Equipment { BARBELL, DUMBBELL, MACHINE, CABLE, BODYWEIGHT, KETTLEBELL
  * How a meal's numbers were produced. Drives what the UI is allowed to claim:
  * a PHOTO estimate and a weighed MANUAL entry must never render identically,
  * because the plan's credibility depends on knowing which is which.
+ *
+ * BARCODE is a packaged food's label values from Open Food Facts - not an
+ * Estimate. Stored by name, so adding a value needs no migration.
  */
-enum class MealSource { MANUAL, AI_CHAT, PHOTO, REPEATED }
+enum class MealSource { MANUAL, AI_CHAT, PHOTO, REPEATED, BARCODE }

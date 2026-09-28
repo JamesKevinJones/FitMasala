@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -96,6 +97,7 @@ fun FitMasalaApp(
     val showSettings = currentRoute == Routes.SETTINGS
     val snapping = currentRoute == Routes.PHOTO_CAPTURE
     val loggingMeal = currentRoute == Routes.LOG_MEAL
+    val scanning = currentRoute == Routes.BARCODE
     var destination by remember(currentRoute) {
         mutableStateOf(
             TopLevelDestination.entries.find { it.route == currentRoute }
@@ -148,6 +150,11 @@ fun FitMasalaApp(
             fabExpanded = false
             navController.navigate(Routes.LOG_MEAL) { launchSingleTop = true }
         },
+        // A packet's label from Open Food Facts - the only non-LLM network call.
+        FabAction("Scan a barcode", Icons.Filled.QrCodeScanner) {
+            fabExpanded = false
+            navController.navigate(Routes.BARCODE) { launchSingleTop = true }
+        },
         FabAction("Ask the chef", Icons.Filled.Restaurant) {
             fabExpanded = false
             navController.navigate(Routes.AI_CHEF) { launchSingleTop = true }
@@ -180,9 +187,10 @@ fun FitMasalaApp(
                         showSettings -> "Settings"
                         snapping -> "Snap a meal"
                         loggingMeal -> "Log a meal"
+                        scanning -> "Scan a barcode"
                         else -> titleFor(destination)
                     },
-                    overline = if (showSettings || snapping || loggingMeal) {
+                    overline = if (showSettings || snapping || loggingMeal || scanning) {
                         null
                     } else {
                         overlineFor(destination, cutWeek(plan.startedAtDayEpoch, DateKeys.today()))
@@ -213,7 +221,7 @@ fun FitMasalaApp(
                 // No FAB on Settings: a FAB is the screen's primary action, and
                 // Settings has none. It was also physically covering a switch.
                 // None while snapping or logging either: "Log dish" is that screen's action.
-                if (!showSettings && !snapping && !loggingMeal) {
+                if (!showSettings && !snapping && !loggingMeal && !scanning) {
                     FmExpandableFab(
                         actions = quickActions,
                         expanded = fabExpanded,

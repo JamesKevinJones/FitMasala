@@ -2,8 +2,9 @@
 
 Native Android app for one user (Kevin). Combines an authentic-Indian culinary AI
 (recipes + macro estimation) with a strength-training log, on one daily dashboard.
-Everything persists locally; the only network traffic is the user's own LLM API
-calls using a key they paste into Settings.
+Everything persists locally. The only network traffic is the user's own LLM API
+calls, using a key they paste into Settings, and Open Food Facts barcode lookups,
+which send the barcode and nothing else.
 
 ## Stack
 
@@ -80,7 +81,7 @@ domain/plan        Cutting-plan engine: body fat, weight trend, adaptive TDEE,
 domain/repository  Repository interfaces
 domain/usecase     Single-responsibility use cases
 di                 Hilt modules (DatabaseModule, NetworkModule, RepositoryModule)
-presentation/      navigation/ dashboard/ chef/ snap/ log/ plan/ workout/ settings/
+presentation/      navigation/ dashboard/ chef/ snap/ log/ barcode/ plan/ workout/ settings/
 ```
 
 ## How the pieces connect
@@ -169,6 +170,10 @@ per decision. Read it before reversing something that looks arbitrary.
   Gemini - never in a URL. Each provider has its own OkHttp client, so one key
   can never ride on the other's request. Never log a key. Backups are disabled
   app-wide in the manifest for the same reason.
+- **Open Food Facts gets a barcode and nothing else** - no key, no account, no
+  meal data - on its own OkHttp client with no key interceptor
+  (DECISIONS 2026-09-28). Its values are a label, logged as `MealSource.BARCODE`,
+  never as an Estimate.
 - **Room schemas are exported** to `app/schemas/` and committed, so migrations
   can be diffed. Bump `version` and write a `Migration` — never
   `fallbackToDestructiveMigration()`, since the meal and workout history is the

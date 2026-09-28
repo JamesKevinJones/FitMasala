@@ -82,7 +82,8 @@ solver, plan engine) and `domain/progress/` (streaks, XP), pure Kotlin.
 **Screens** - Today (meals, plan target, streak, sessions), Chef + AI Chef,
 Snap a meal (camera or gallery, review sheet, per-Dish editing, typed Dishes,
 failure paths, log by hand), Log a meal (FAB: one typed dish, MANUAL not an
-Estimate, movable time), Train + Active Session, Plan (setup form, weigh-in
+Estimate, movable time), Scan a barcode (FAB: Google code scanner or typed
+digits, label from Open Food Facts, servings else grams, logged as BARCODE), Train + Active Session, Plan (setup form, weigh-in
 sheet with optional tape, trend chart, projection, edit or restart the cut), Settings (theme, AI
 provider, keys, rest timer).
 
@@ -93,9 +94,11 @@ provider, keys, rest timer).
 
 ## Next
 
-After the steps above, the project is feature-complete for its brief. Likely
-follow-up, not started: barcode lookup against Open Food Facts (DECISIONS
-2026-09-27 marks it as a separate, later feature).
+After the steps above, the project is feature-complete for its brief, with no
+planned follow-ups left. Barcode lookup was the last one; its scanner library
+(`play-services-code-scanner` 16.1.0) and Open Food Facts' live responses could
+not be reached from the build container, so the first local build and a real
+scan are its first check.
 
 ## Device automation - do not repeat
 
