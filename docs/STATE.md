@@ -1,23 +1,22 @@
 # STATE
 
-_Last updated: 2026-09-28, after the "finish the project" pass. Everything
-planned is now built; what remains is merging three PRs, one local build, and
-the steps only Kevin can do on his phone and with his keys._
+_Last updated: 2026-09-28 (late), after #29-#32 merged. Every planned feature
+is on `main` and no PRs are open. What remains is one local build and the
+steps only Kevin can do on his phone and with his keys._
 
 ## Where we are
 
-**All six phases are built.** Photo meal logging (#2-#10) and the provider
-work (#20-#22) are on `main`. The last three PRs are open, independent of each
-other, and can merge in any order:
+**All six phases are built and merged.** Photo meal logging (#2-#10), the
+provider work (#20-#22, #24), the finished Plan tab and app shell (#29), and
+the Claude vs Gemini comparison runner (#31) are all on `main`.
 
-| PR | What | Closes |
-| --- | --- | --- |
-| #29 | Plan tab setup form + weigh-in sheet, FAB actions, rail navigation, real app-bar dates, dead code removed | Phase 6, known issues |
-| #30 | The Chef on the chosen provider (Gemini or Claude) | #24 |
-| #31 | Opt-in Claude vs Gemini comparison runner | #23 (after Kevin's run) |
+**One issue is open: #23**, the comparison run. The runner is merged; the run
+itself needs Kevin's meal photos, a known-values table and both API keys (step
+6 below). It closes once the result is recorded in `docs/DECISIONS.md`.
 
-None of this has been through Gradle: every PR since #14 was written in a
-cloud container with no Android SDK.
+**None of it has been through Gradle.** Every PR since #14 was written in a
+cloud container with no Android SDK, so the first local build is the first
+real compile of the screens, Hilt wiring and Room queries.
 
 ### What has been verified, and how
 
@@ -34,7 +33,7 @@ cloud container with no Android SDK.
 
 ## What Kevin needs to do
 
-1. **Build once from `main` after merging #29-#31:**
+1. **Pull `main` and build once:**
    ```
    .\gradlew.bat :app:testDebugUnitTest
    .\gradlew.bat :app:assembleDebug
@@ -51,12 +50,15 @@ cloud container with no Android SDK.
    weigh-in with and without the tape, snap a meal, switch to Gemini with the
    Anthropic key removed and ask the Chef for a recipe, then Cook & Eat.
 5. **Add the `CLAUDE_API_KEY` Actions secret** (Settings -> Secrets and
-   variables -> Actions). The `security` check is red on every PR until then;
-   nothing in the code fixes it.
-6. **The comparison run (#23):** photos + `known.csv`, both keys, then
-   `docs/VERIFY.md` -> *Claude vs Gemini on your own meals*. Paste the headline
-   numbers under the 2026-09-27 Gemini entry in `docs/DECISIONS.md`; change the
-   default provider only if the rule says so.
+   variables -> Actions). The `security` check fails on every PR with
+   `ANTHROPIC_API_KEY is not set` until then; nothing in the code fixes it.
+6. **The comparison run (#23):** 15-20 photos + `known.csv`, both keys, then
+   `docs/VERIFY.md` -> *Claude vs Gemini on your own meals*. Run it locally so
+   the keys stay on your machine, and hand the resulting `report.md` to an
+   agent session. The agent records the headline numbers under the 2026-09-27
+   Gemini entry in `docs/DECISIONS.md`, changes the default provider only if
+   Gemini's median calorie error is within Claude's plus 5 points, and closes
+   #23.
 
 ## What exists
 
