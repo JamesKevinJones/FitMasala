@@ -28,6 +28,15 @@ class PlanViewModel @Inject constructor(
         plans.logWeight(weighIn.weightKg, weighIn.waistCm, weighIn.neckCm, weighIn.hipCm)
     }
 
+    fun updateCut(edit: CutEdit) = viewModelScope.launch {
+        plans.updateCut(
+            ageYears = edit.ageYears,
+            activityLevel = edit.activity.name,
+            aggression = edit.aggression.name,
+            goalBodyFatPercent = edit.goalBodyFatPercent,
+        )
+    }
+
     fun startCut(setup: CutSetup) = viewModelScope.launch {
         plans.startCut(
             sex = setup.sex.name,

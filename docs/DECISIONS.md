@@ -913,3 +913,27 @@ as meal estimates (#24). `EstimateBackend` became `ProviderBackend`, and
   text.
 - **The #23 comparison still decides the default provider.** This entry only
   stops the Chef being pinned to Claude.
+
+## 2026-09-28 — Editing a cut keeps its start; restarting is a new cut
+
+**Context.** A cut could only be set up once; changing the goal or pace, or
+starting over after a break, meant clearing app data.
+
+**Decision.**
+
+- **Edit changes where the cut is heading, never where it started.** Goal,
+  pace, activity and age can change. Saving retires the active goal row and
+  inserts a copy that keeps the start weight, start body fat and start date, so
+  "week N of the cut" and "down X kg" do not move and the old settings stay in
+  history (`PlanDao.startNewGoal` already refused to edit in place for this
+  reason). The cached target is not carried over; it belonged to the old
+  settings.
+- **Sex, height and the start are the cut itself.** Changing them is starting a
+  new cut, which is offered next to Edit behind a confirmation.
+- **A restart is prefilled but asks for a fresh body fat.** Who you are and how
+  you train carry over, and the weight comes from today's trend; the old cut's
+  body-fat number is not carried forward, because a new start deserves a new
+  measurement.
+- **An edited goal is checked against where you are now**, not where the cut
+  started: someone already leaner than their old start needs a goal below
+  today's number.

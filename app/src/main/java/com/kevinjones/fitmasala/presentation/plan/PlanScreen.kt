@@ -14,10 +14,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MonitorWeight
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -51,6 +53,9 @@ import com.kevinjones.fitmasala.core.ui.theme.numeric
 import com.kevinjones.fitmasala.domain.plan.ActivityLevel
 import com.kevinjones.fitmasala.domain.plan.CutAggression
 import com.kevinjones.fitmasala.domain.plan.Sex
+import com.kevinjones.fitmasala.domain.repository.ActiveCut
+import com.kevinjones.fitmasala.core.util.DateKeys
+import java.time.format.DateTimeFormatter
 
 /**
  * The cut, made visible, from real weigh-ins.
@@ -76,6 +81,32 @@ fun PlanScreen(
     val adjustment = snapshot.adjustment
     var settingUp by rememberSaveable { mutableStateOf(false) }
     var weighing by rememberSaveable { mutableStateOf(false) }
+    var editing by rememberSaveable { mutableStateOf(false) }
+    var confirmingRestart by rememberSaveable { mutableStateOf(false) }
+    var restarting by rememberSaveable { mutableStateOf(false) }
+    val cut = snapshot.cut
+    val currentBodyFat = projection?.current?.bodyFatPercent
+
+    if (confirmingRestart) {
+        AlertDialog(
+            onDismissRequest = { confirmingRestart = false },
+            title = { Text("Start a new cut?") },
+            text = {
+                Text(
+                    "This cut stays in your history. The new one starts from today's weight " +
+                        "and a fresh body-fat reading, and the week count starts again.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmingRestart = false
+                    editing = false
+                    restarting = true
+                }) { Text("Start over") }
+            },
+            dismissButton = { TextButton(onClick = { confirmingRestart = false }) { Text("Cancel") } },
+        )
+    }
 
     if (weighing) {
         ModalBottomSheet(
@@ -112,6 +143,22 @@ fun PlanScreen(
                 }
             } else {
                 item("setup") { SetupPrompt(onStart = { settingUp = true }) }
+            }
+            return@LazyColumn
+        }
+
+        if (restarting && cut != null) {
+            item("restart-form") {
+                CutSetupCard(
+                    initial = CutSetupForm.restartFrom(cut, snapshot.trend.lastOrNull()?.weightKg),
+                    intro = "Your details are carried over. Weigh in and measure again - " +
+                        "a new start deserves a new body-fat number.",
+                    onStart = {
+                        viewModel.startCut(it)
+                        restarting = false
+                    },
+                    onCancel = { restarting = false },
+                )
             }
             return@LazyColumn
         }
@@ -165,6 +212,31 @@ fun PlanScreen(
             item("projection-header") { SectionHeader("Projection") }
             item("projection") { ProjectionCard(projection) }
         }
+
+        if (cut != null) {
+            item("cut-header") {
+                SectionHeader(
+                    title = "Your cut",
+                    action = if (editing) null else "Edit",
+                    onAction = { editing = true },
+                )
+            }
+            item("cut") {
+                if (editing) {
+                    CutEditCard(
+                        cut = cut,
+                        currentBodyFatPercent = currentBodyFat,
+                        onSave = {
+                            viewModel.updateCut(it)
+                            editing = false
+                        },
+                        onCancel = { editing = false },
+                    )
+                } else {
+                    CutSummaryCard(cut = cut, onStartOver = { confirmingRestart = true })
+                }
+            }
+        }
     }
 }
 
@@ -186,13 +258,21 @@ private fun SetupPrompt(onStart: () -> Unit) {
  * used. Errors appear only after the first attempt, next to their own field.
  */
 @Composable
-private fun CutSetupCard(onStart: (CutSetup) -> Unit, onCancel: () -> Unit) {
-    var form by rememberSaveable(stateSaver = CutSetupFormSaver) { mutableStateOf(CutSetupForm()) }
+private fun CutSetupCard(
+    onStart: (CutSetup) -> Unit,
+    onCancel: () -> Unit,
+    initial: CutSetupForm = CutSetupForm(),
+    intro: String? = null,
+) {
+    var form by rememberSaveable(stateSaver = CutSetupFormSaver) { mutableStateOf(initial) }
     var attempted by rememberSaveable { mutableStateOf(false) }
     val result = form.validate()
     val errors = if (attempted) (result as? FormResult.Invalid)?.errors.orEmpty() else emptyMap()
 
     FmCard(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Fm.gutter)) {
+        if (intro != null) {
+            Text(intro, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.fm.textSecondary)
+        }
         Text("About you", style = MaterialTheme.typography.titleMedium)
         FmSegmentedButtons(
             options = Sex.entries,
@@ -242,28 +322,12 @@ private fun CutSetupCard(onStart: (CutSetup) -> Unit, onCancel: () -> Unit) {
             form = form.copy(goal = it)
         }
 
-        Text("Activity", style = MaterialTheme.typography.titleMedium)
-        Column {
-            ActivityLevel.entries.forEach { level ->
-                FmRadioRow(
-                    title = level.label,
-                    selected = form.activity == level,
-                    onSelect = { form = form.copy(activity = level) },
-                )
-            }
-        }
-
-        Text("Pace", style = MaterialTheme.typography.titleMedium)
-        Column {
-            CutAggression.entries.forEach { pace ->
-                FmRadioRow(
-                    title = pace.label,
-                    supporting = "%.1f%% of bodyweight a week".format(pace.weeklyRatePctBodyweight),
-                    selected = form.aggression == pace,
-                    onSelect = { form = form.copy(aggression = pace) },
-                )
-            }
-        }
+        ActivityAndPace(
+            activity = form.activity,
+            aggression = form.aggression,
+            onActivity = { form = form.copy(activity = it) },
+            onPace = { form = form.copy(aggression = it) },
+        )
 
         Row(horizontalArrangement = Arrangement.spacedBy(Fm.tight)) {
             FmButtonGhost(text = "Cancel", onClick = onCancel, modifier = Modifier.weight(1f))
@@ -346,6 +410,110 @@ private fun WeighInSheet(
         }
     }
 }
+
+/** The activity and pace choices, shared by setting up a cut and editing one. */
+@Composable
+private fun ActivityAndPace(
+    activity: ActivityLevel,
+    aggression: CutAggression,
+    onActivity: (ActivityLevel) -> Unit,
+    onPace: (CutAggression) -> Unit,
+) {
+    Text("Activity", style = MaterialTheme.typography.titleMedium)
+    Column {
+        ActivityLevel.entries.forEach { level ->
+            FmRadioRow(title = level.label, selected = activity == level, onSelect = { onActivity(level) })
+        }
+    }
+
+    Text("Pace", style = MaterialTheme.typography.titleMedium)
+    Column {
+        CutAggression.entries.forEach { pace ->
+            FmRadioRow(
+                title = pace.label,
+                supporting = "%.1f%% of bodyweight a week".format(pace.weeklyRatePctBodyweight),
+                selected = aggression == pace,
+                onSelect = { onPace(pace) },
+            )
+        }
+    }
+}
+
+/**
+ * The active cut at a glance: where it started and where it is heading. The
+ * start is fixed - it is what "down X kg" is measured from - so changing it
+ * means starting over, which is offered here rather than as an edit.
+ */
+@Composable
+private fun CutSummaryCard(cut: ActiveCut, onStartOver: () -> Unit) {
+    FmCard(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Fm.gutter)) {
+        FmStatRow {
+            FmStat("%.0f%%".format(cut.goalBodyFatPercent), "goal", tint = MaterialTheme.fm.progress)
+            FmStat(cut.aggression.name.lowercase().replaceFirstChar { it.uppercase() }, "pace")
+            FmStat("%.1f kg".format(cut.startWeightKg), "start")
+        }
+        Text(
+            "Started " + DateKeys.localDateOf(cut.startedAtDayEpoch).format(StartDate) +
+                " at %.0f%% body fat. ".format(cut.startBodyFatPercent) + cut.activity.label + ".",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.fm.textSecondary,
+        )
+        FmButtonGhost(text = "Start a new cut", onClick = onStartOver, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+/**
+ * Changing where the cut is heading. Saving retires the old settings rather than
+ * overwriting them, and keeps the start, so the week count and the trend carry on.
+ */
+@Composable
+private fun CutEditCard(
+    cut: ActiveCut,
+    currentBodyFatPercent: Double?,
+    onSave: (CutEdit) -> Unit,
+    onCancel: () -> Unit,
+) {
+    var form by rememberSaveable(stateSaver = CutEditFormSaver) { mutableStateOf(CutEditForm.from(cut)) }
+    var attempted by rememberSaveable { mutableStateOf(false) }
+    val result = form.validate(currentBodyFatPercent)
+    val errors = if (attempted) (result as? FormResult.Invalid)?.errors.orEmpty() else emptyMap()
+
+    FmCard(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Fm.gutter)) {
+        Text(
+            "Your start stays as it is: %.1f kg on ".format(cut.startWeightKg) +
+                DateKeys.localDateOf(cut.startedAtDayEpoch).format(StartDate) + ".",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.fm.textSecondary,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(Fm.tight)) {
+            NumberField("Goal", "%", form.goal, errors[PlanField.GOAL], Modifier.weight(1f)) {
+                form = form.copy(goal = it)
+            }
+            NumberField("Age", "years", form.age, errors[PlanField.AGE], Modifier.weight(1f), decimal = false) {
+                form = form.copy(age = it)
+            }
+        }
+        ActivityAndPace(
+            activity = form.activity,
+            aggression = form.aggression,
+            onActivity = { form = form.copy(activity = it) },
+            onPace = { form = form.copy(aggression = it) },
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(Fm.tight)) {
+            FmButtonGhost(text = "Cancel", onClick = onCancel, modifier = Modifier.weight(1f))
+            FmButton(
+                text = "Save",
+                onClick = {
+                    attempted = true
+                    (result as? FormResult.Valid)?.let { onSave(it.value) }
+                },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+private val StartDate: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMMM")
 
 /** A labelled number input with its unit, and its own error under it. */
 @Composable
@@ -445,4 +613,16 @@ private val CutSetupFormSaver = listSaver<CutSetupForm, String>(
 private val WeighInFormSaver = listSaver<WeighInForm, String>(
     save = { listOf(it.weight, it.waist, it.neck, it.hip) },
     restore = { WeighInForm(weight = it[0], waist = it[1], neck = it[2], hip = it[3]) },
+)
+
+private val CutEditFormSaver = listSaver<CutEditForm, String>(
+    save = { listOf(it.age, it.activity.name, it.aggression.name, it.goal) },
+    restore = {
+        CutEditForm(
+            age = it[0],
+            activity = ActivityLevel.valueOf(it[1]),
+            aggression = CutAggression.valueOf(it[2]),
+            goal = it[3],
+        )
+    },
 )

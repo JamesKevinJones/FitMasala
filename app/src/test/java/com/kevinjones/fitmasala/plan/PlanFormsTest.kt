@@ -1,7 +1,12 @@
 package com.kevinjones.fitmasala.plan
 
+import com.kevinjones.fitmasala.domain.plan.ActivityLevel
 import com.kevinjones.fitmasala.domain.plan.BodyFatSource
+import com.kevinjones.fitmasala.domain.plan.CutAggression
 import com.kevinjones.fitmasala.domain.plan.Sex
+import com.kevinjones.fitmasala.domain.repository.ActiveCut
+import com.kevinjones.fitmasala.presentation.plan.CutEdit
+import com.kevinjones.fitmasala.presentation.plan.CutEditForm
 import com.kevinjones.fitmasala.presentation.plan.CutSetup
 import com.kevinjones.fitmasala.presentation.plan.CutSetupForm
 import com.kevinjones.fitmasala.presentation.plan.FormResult
@@ -113,5 +118,48 @@ class PlanFormsTest {
         assertEquals(1, cutWeek(100, 106))
         assertEquals(2, cutWeek(100, 107))
         assertEquals(6, cutWeek(100, 137))
+    }
+
+    // --- Editing and restarting a cut ------------------------------------------
+
+    private val cut = ActiveCut(
+        sex = Sex.MALE, heightCm = 178.0, ageYears = 27, activity = ActivityLevel.HIGH,
+        aggression = CutAggression.CONSERVATIVE, goalBodyFatPercent = 12.5,
+        startWeightKg = 85.0, startBodyFatPercent = 22.0, startedAtDayEpoch = 100,
+    )
+
+    @Test fun theEditFormStartsFromTheActiveCut() {
+        assertEquals(CutEditForm("27", ActivityLevel.HIGH, CutAggression.CONSERVATIVE, "12.5"), CutEditForm.from(cut))
+    }
+
+    @Test fun anEditIsValidatedAgainstWhereYouAreNow() {
+        val form = CutEditForm.from(cut).copy(goal = "10", aggression = CutAggression.STANDARD)
+        assertEquals(
+            CutEdit(27, ActivityLevel.HIGH, CutAggression.STANDARD, 10.0),
+            (form.validate(currentBodyFatPercent = 18.0) as FormResult.Valid).value,
+        )
+        // Already leaner than the old start: the goal must be below today's number, not the start's.
+        assertEquals(setOf(PlanField.GOAL), form.copy(goal = "15").validate(currentBodyFatPercent = 14.0).errors().keys)
+        assertEquals(setOf(PlanField.AGE), form.copy(age = "x").validate(18.0).errors().keys)
+    }
+
+    @Test fun withoutACurrentReadingOnlyTheRangeIsChecked() {
+        assertTrue(CutEditForm.from(cut).validate(currentBodyFatPercent = null) is FormResult.Valid)
+    }
+
+    @Test fun aRestartKeepsWhoYouAreAndAsksForAFreshBodyFat() {
+        val form = CutSetupForm.restartFrom(cut, currentWeightKg = 80.44)
+        assertEquals("178", form.height)
+        assertEquals("27", form.age)
+        assertEquals("80.4", form.weight)
+        assertEquals("12.5", form.goal)
+        assertEquals(ActivityLevel.HIGH, form.activity)
+        assertEquals("", form.bodyFat)
+        assertEquals("a restart still needs a body fat", setOf(PlanField.BODY_FAT), form.validate().errors().keys)
+        assertTrue(form.copy(bodyFat = "18").validate() is FormResult.Valid)
+    }
+
+    @Test fun aRestartWithNoWeighInLeavesWeightBlank() {
+        assertEquals("", CutSetupForm.restartFrom(cut, currentWeightKg = null).weight)
     }
 }
