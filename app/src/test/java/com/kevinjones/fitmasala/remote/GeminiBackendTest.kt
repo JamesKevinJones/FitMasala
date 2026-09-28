@@ -1,12 +1,14 @@
 package com.kevinjones.fitmasala.remote
 
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import com.kevinjones.fitmasala.data.remote.CulinaryLlmClient
 import com.kevinjones.fitmasala.data.remote.GeminiAuthInterceptor
 import com.kevinjones.fitmasala.data.remote.GeminiBackend
 import com.kevinjones.fitmasala.data.remote.LlmRequest
 import com.kevinjones.fitmasala.data.remote.LlmResult
 import com.kevinjones.fitmasala.data.remote.api.GeminiApi
 import com.kevinjones.fitmasala.data.remote.apiJson
+import com.kevinjones.fitmasala.data.remote.dto.RecipeDto
 import com.kevinjones.fitmasala.data.remote.prompt.GeminiSchema
 import com.kevinjones.fitmasala.data.remote.prompt.RecipeSchemas
 import kotlinx.coroutines.test.runTest
@@ -29,7 +31,7 @@ import retrofit2.Retrofit
 import java.io.IOException
 
 /**
- * Gemini estimates (#22), through the real Retrofit service and JSON converter:
+ * Gemini estimates (#22) and Chef recipes (#24), through the real Retrofit service and JSON converter:
  * only the network is replaced, by an interceptor that records the outgoing
  * request and answers with a canned response. So the URL, header and body are
  * what the app would really send, and each response is parsed as it would be.
@@ -252,4 +254,44 @@ class GeminiBackendTest {
         )
     }
 
+    // --- The Chef on Gemini (#24) ---------------------------------------------
+
+    @Test
+    fun aGeminiRecipeParsesKeepsItsRawTextAndPassesTheAtwaterCheck() = runTest {
+        val wire = ok(resource("recipe-success.json"))
+        val result = CulinaryLlmClient(backend(wire), json).generateRecipe("toor dal, ghee, jeera", "lunch", 2)
+            as LlmResult.Success
+
+        assertEquals("Dal tadka", result.value.title)
+        assertEquals(3, result.value.ingredients.size)
+        assertEquals(245.0, result.value.macrosPerServing.calories, 0.0)
+        assertEquals("gemini-3.1-flash", result.model)
+        assertEquals("a clean recipe raises no advisories", emptyList<String>(), result.advisories)
+        // rawResponse keeps the model's own text, so a better parser can re-read it.
+        assertEquals(result.value, json.decodeFromString<RecipeDto>(result.rawJson))
+
+        val body = json.parseToJsonElement(Buffer().also { wire.sent!!.body!!.writeTo(it) }.readUtf8()).jsonObject
+        assertEquals(
+            GeminiSchema.from(RecipeSchemas.RECIPE),
+            body["generationConfig"]!!.jsonObject["responseSchema"],
+        )
+        assertNull("a recipe sends no image", body["contents"]!!.jsonArray.single().jsonObject["parts"]!!.jsonArray
+            .firstOrNull { "inlineData" in it.jsonObject })
+    }
+
+    @Test
+    fun aRefusedRecipeIsARefusal() = runTest {
+        assertEquals(
+            LlmResult.Failure.Refused("SAFETY", "The model declined this request."),
+            CulinaryLlmClient(backend(ok(resource("recipe-safety.json"))), json).generateRecipe("dal"),
+        )
+    }
+
+    @Test
+    fun aRecipeCutOffMidJsonIsTruncated() = runTest {
+        assertEquals(
+            LlmResult.Failure.Truncated,
+            CulinaryLlmClient(backend(ok(resource("recipe-max-tokens.json"))), json).generateRecipe("dal"),
+        )
+    }
 }

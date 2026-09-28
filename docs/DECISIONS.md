@@ -871,3 +871,20 @@ with:
   test fixtures.
 - **Not reachable from the build container:** `ai.google.dev`'s prose docs.
 
+
+## 2026-09-28 — One provider choice covers the Chef too
+
+**Decision:** The provider chosen in Settings now answers Chef recipes as well
+as meal estimates (#24). `EstimateBackend` became `ProviderBackend`, and
+`CulinaryLlmClient` takes that one backend for every call.
+
+- **Why now:** a Gemini-only setup used to need an Anthropic key for the Chef
+  alone. And a "Cook & Eat" meal is an Estimate like any other, so having it
+  come from a different model than photo meals put two estimation biases in one
+  log - exactly what the no-fallback rule exists to prevent.
+- **Nothing else forks:** the recipe schema is converted from the one
+  definition in `RecipeSchemas` (already covered by `GeminiSchemaTest`), the
+  Atwater check runs on both, and `rawResponse` keeps whichever model's own
+  text.
+- **The #23 comparison still decides the default provider.** This entry only
+  stops the Chef being pinned to Claude.

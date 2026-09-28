@@ -1,0 +1,24 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "{\"title\": \"Dal tadka\", \"titleLocal\": \"दाल तड़का\", \"region\": \"PUNJABI\", \"provenanceNote\": \"A Punjabi dhaba staple: toor dal finished with a ghee tadka.\", \"cookingMethod\": \"TADKA\", \""
+          }
+        ]
+      },
+      "finishReason": "MAX_TOKENS",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 900,
+    "candidatesTokenCount": 8192,
+    "thoughtsTokenCount": 0,
+    "totalTokenCount": 9092
+  },
+  "modelVersion": "gemini-3.1-flash",
+  "responseId": "r-recipe"
+}
