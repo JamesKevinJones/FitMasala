@@ -3,9 +3,9 @@ package com.kevinjones.fitmasala.di
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.kevinjones.fitmasala.BuildConfig
 import com.kevinjones.fitmasala.data.remote.AnthropicAuthInterceptor
-import com.kevinjones.fitmasala.data.remote.AnthropicBackend
-import com.kevinjones.fitmasala.data.remote.LlmBackend
+import com.kevinjones.fitmasala.data.remote.GeminiAuthInterceptor
 import com.kevinjones.fitmasala.data.remote.api.AnthropicApi
+import com.kevinjones.fitmasala.data.remote.api.GeminiApi
 import com.kevinjones.fitmasala.data.remote.AiService
 import com.kevinjones.fitmasala.data.remote.apiJson
 import dagger.Module
@@ -67,9 +67,34 @@ object NetworkModule {
     fun provideAnthropicApi(retrofit: Retrofit): AnthropicApi =
         retrofit.create(AnthropicApi::class.java)
 
-    /** The provider every LLM call goes through. Anthropic is the only one today. */
+    /**
+     * Gemini gets its own OkHttp client so its interceptor - and so its key -
+     * only ever sees Gemini requests. The Anthropic client above never carries
+     * the Gemini key, nor this one the Anthropic key.
+     */
     @Provides
-    fun provideLlmBackend(anthropic: AnthropicBackend): LlmBackend = anthropic
+    @Singleton
+    fun provideGeminiApi(auth: GeminiAuthInterceptor, json: Json): GeminiApi {
+        val client = OkHttpClient.Builder()
+            .addInterceptor(auth)
+            .apply {
+                if (BuildConfig.DEBUG) {
+                    // BASIC only: the key is a header, and a URL never carries it.
+                    addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC })
+                }
+            }
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(180, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .build()
+        return Retrofit.Builder()
+            .baseUrl(GeminiApi.BASE_URL)
+            .client(client)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(GeminiApi::class.java)
+    }
 
     @Provides
     @Singleton

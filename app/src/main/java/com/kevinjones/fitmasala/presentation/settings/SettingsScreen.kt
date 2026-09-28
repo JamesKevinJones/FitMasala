@@ -34,6 +34,7 @@ import com.kevinjones.fitmasala.core.ui.components.FmSwitchRow
 import com.kevinjones.fitmasala.core.ui.components.FmTextField
 import com.kevinjones.fitmasala.core.ui.components.SectionHeader
 import com.kevinjones.fitmasala.data.prefs.AppSettings
+import com.kevinjones.fitmasala.data.prefs.LlmProvider
 import com.kevinjones.fitmasala.data.prefs.ThemeMode
 import com.kevinjones.fitmasala.core.ui.theme.Fm
 
@@ -50,6 +51,9 @@ fun SettingsScreen(
     onThemeMode: (ThemeMode) -> Unit,
     onApiKey: (String) -> Unit,
     onClearApiKey: () -> Unit,
+    onProvider: (LlmProvider) -> Unit,
+    onGeminiApiKey: (String) -> Unit,
+    onClearGeminiApiKey: () -> Unit,
     onRestSeconds: (Int) -> Unit,
     onRestVibrate: (Boolean) -> Unit,
     contentPadding: PaddingValues,
@@ -89,8 +93,32 @@ fun SettingsScreen(
             }
         }
 
-        item("api-header") { SectionHeader("AI chef") }
-        item("api") { ApiKeyCard(settings, onApiKey, onClearApiKey) }
+        item("api-header") { SectionHeader("AI") }
+        item("estimates") { EstimatesCard(settings.provider, onProvider) }
+        item("api") {
+            ApiKeyCard(
+                title = "Anthropic key",
+                hasKey = settings.hasApiKey,
+                maskedKey = settings.maskedApiKey,
+                description = "The chef always uses Claude, and so do meal estimates when Claude is " +
+                    "chosen above. The app talks to Anthropic directly with your own key.",
+                placeholder = "sk-ant-...",
+                onSave = onApiKey,
+                onClear = onClearApiKey,
+            )
+        }
+        item("gemini-api") {
+            ApiKeyCard(
+                title = "Gemini key",
+                hasKey = settings.hasGeminiApiKey,
+                maskedKey = settings.maskedGeminiApiKey,
+                description = "Used only for meal estimates, when Gemini is chosen above. The app talks " +
+                    "to Google directly with your own key, from Google AI Studio.",
+                placeholder = "AIza...",
+                onSave = onGeminiApiKey,
+                onClear = onClearGeminiApiKey,
+            )
+        }
 
         item("training-header") { SectionHeader("Training") }
         item("training") {
@@ -130,7 +158,48 @@ fun SettingsScreen(
 }
 
 /**
- * The API key card.
+ * Who estimates meals. A radio group, because exactly one answers - the app
+ * never falls back to the other (DECISIONS 2026-09-27).
+ */
+@Composable
+private fun EstimatesCard(provider: LlmProvider, onProvider: (LlmProvider) -> Unit) {
+    FmCard(
+        Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(vertical = Fm.tight),
+        verticalArrangement = Arrangement.spacedBy(Fm.hair),
+    ) {
+        Text(
+            text = "Meal estimates",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = Fm.gutter),
+        )
+        FmRadioGroup {
+            LlmProvider.entries.forEach { option ->
+                FmRadioRow(
+                    title = option.label,
+                    supporting = option.description,
+                    selected = provider == option,
+                    onSelect = { onProvider(option) },
+                )
+            }
+        }
+        Text(
+            text = "Switching changes how meals are estimated, so your plan takes a couple of " +
+                "weeks of weigh-ins to settle again." +
+                if (provider == LlmProvider.GEMINI) {
+                    " On Gemini's free tier, Google may use the photos you send to improve its products."
+                } else {
+                    ""
+                },
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = Fm.gutter),
+        )
+    }
+}
+
+/**
+ * One provider's API key.
  *
  * The saved key is shown MASKED and is not editable in place - editing a
  * password field you cannot read is guesswork. Replacing it means pasting a new
@@ -139,34 +208,37 @@ fun SettingsScreen(
  */
 @Composable
 private fun ApiKeyCard(
-    settings: AppSettings,
-    onApiKey: (String) -> Unit,
-    onClearApiKey: () -> Unit,
+    title: String,
+    hasKey: Boolean,
+    maskedKey: String,
+    description: String,
+    placeholder: String,
+    onSave: (String) -> Unit,
+    onClear: () -> Unit,
 ) {
     var draft by remember { mutableStateOf("") }
     var reveal by remember { mutableStateOf(false) }
 
     FmCard(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Fm.snug)) {
-        if (settings.hasApiKey) {
-            Text("Key saved", style = MaterialTheme.typography.titleMedium)
+        if (hasKey) {
+            Text("$title saved", style = MaterialTheme.typography.titleMedium)
             Text(
-                text = settings.maskedApiKey,
+                text = maskedKey,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            FmButtonGhost("Remove key", onClick = onClearApiKey, modifier = Modifier.fillMaxWidth())
+            FmButtonGhost("Remove key", onClick = onClear, modifier = Modifier.fillMaxWidth())
         } else {
-            Text("Add your API key", style = MaterialTheme.typography.titleMedium)
+            Text("Add your $title", style = MaterialTheme.typography.titleMedium)
             Text(
-                text = "The app talks to Anthropic directly with your own key. " +
-                    "There is no server in between, and the key never leaves this phone.",
+                text = "$description There is no server in between, and the key never leaves this phone.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             FmTextField(
                 value = draft,
                 onValueChange = { draft = it },
-                placeholder = "sk-ant-...",
+                placeholder = placeholder,
                 modifier = Modifier.fillMaxWidth(),
                 // Password transformation by default, with a reveal, because a
                 // pasted key that cannot be checked is a key pasted wrong.
@@ -185,7 +257,7 @@ private fun ApiKeyCard(
             FmButton(
                 text = "Save key",
                 onClick = {
-                    onApiKey(draft)
+                    onSave(draft)
                     draft = ""
                     reveal = false
                 },

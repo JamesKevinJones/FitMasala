@@ -3,6 +3,7 @@ package com.kevinjones.fitmasala.presentation.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kevinjones.fitmasala.data.prefs.AppSettings
+import com.kevinjones.fitmasala.data.prefs.LlmProvider
 import com.kevinjones.fitmasala.data.prefs.SettingsStore
 import com.kevinjones.fitmasala.data.prefs.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -40,6 +41,12 @@ class SettingsViewModel @Inject constructor(
     fun clearApiKey() = viewModelScope.launch { store.clearApiKey() }
 
     fun setModelId(id: String) = viewModelScope.launch { store.setModelId(id) }
+
+    fun setProvider(provider: LlmProvider) = viewModelScope.launch { store.setProvider(provider) }
+
+    fun setGeminiApiKey(key: String) = viewModelScope.launch { store.setGeminiApiKey(key) }
+
+    fun clearGeminiApiKey() = viewModelScope.launch { store.clearGeminiApiKey() }
 
     fun setMacroTargets(calories: Int, proteinG: Int, carbsG: Int, fatG: Int) =
         viewModelScope.launch { store.setMacroTargets(calories, proteinG, carbsG, fatG) }
