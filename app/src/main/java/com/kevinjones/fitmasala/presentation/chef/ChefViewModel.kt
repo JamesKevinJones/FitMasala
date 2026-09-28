@@ -23,7 +23,8 @@ import javax.inject.Inject
 
 sealed class ChefMessage {
     data class Text(val text: String, val isUser: Boolean) : ChefMessage()
-    data class Recipe(val recipe: RecipeDto, val rawJson: String) : ChefMessage()
+    /** [model] is the model that wrote the recipe, as the API named it. */
+    data class Recipe(val recipe: RecipeDto, val rawJson: String, val model: String?) : ChefMessage()
     data class Error(val message: String) : ChefMessage()
 }
 
@@ -81,7 +82,7 @@ class ChefViewModel @Inject constructor(
             
             when (result) {
                 is LlmResult.Success -> {
-                    chatMessages.update { it + ChefMessage.Recipe(result.value, result.rawJson) }
+                    chatMessages.update { it + ChefMessage.Recipe(result.value, result.rawJson, result.model) }
                 }
                 is LlmResult.Failure -> {
                     chatMessages.update { it + ChefMessage.Error(result.message) }
@@ -92,7 +93,8 @@ class ChefViewModel @Inject constructor(
         }
     }
 
-    fun cookAndEat(recipe: RecipeDto, rawJson: String) = viewModelScope.launch {
+    fun cookAndEat(message: ChefMessage.Recipe) = viewModelScope.launch {
+        val (recipe, rawJson, model) = message
         // 1. Save to recipes table
         val macros = Macros(
             calories = recipe.macrosPerServing.calories,
@@ -114,7 +116,8 @@ class ChefViewModel @Inject constructor(
             instructions = recipe.instructions,
             techniqueNotes = recipe.techniqueNotes,
             macrosPerServing = macros,
-            rawResponse = rawJson
+            rawResponse = rawJson,
+            modelId = model,
         )
 
         val ingredients = recipe.ingredients.mapIndexed { index, i ->
@@ -140,7 +143,8 @@ class ChefViewModel @Inject constructor(
             macros = macros,
             portions = 1.0,
             mealType = mealTypeForNow(),
-            sourceRecipeId = recipeId
+            sourceRecipeId = recipeId,
+            estimateModel = model,
         )
         
         // 3. Update UI

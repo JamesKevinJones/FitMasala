@@ -28,7 +28,7 @@ interface MealRepository {
     /** Re-logs a dish the user has eaten before, at a given portion count. */
     suspend fun logAgain(source: FrequentMeal, portions: Double, mealType: MealType): Long
 
-    /** Logs a meal from an AI recipe. */
+    /** Logs a meal from an AI recipe; [estimateModel] is the model that wrote it. */
     suspend fun logRecipe(
         name: String,
         region: String,
@@ -36,6 +36,7 @@ interface MealRepository {
         portions: Double,
         mealType: MealType,
         sourceRecipeId: Long? = null,
+        estimateModel: String? = null,
     ): Long
 
     /**

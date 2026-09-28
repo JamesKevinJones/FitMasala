@@ -78,6 +78,7 @@ fun RecipeDto.toLoggedMeal(
     servingsEaten: Double,
     sourceRecipeId: Long?,
     eatenAt: Long = System.currentTimeMillis(),
+    estimateModel: String? = null,
 ) = LoggedMealEntity(
     name = title,
     nameLocal = titleLocal,
@@ -91,6 +92,7 @@ fun RecipeDto.toLoggedMeal(
     portionNote = portionDescription,
     macros = macrosPerServing.toMacros() * servingsEaten,
     isAiEstimate = true,
+    estimateModel = estimateModel,
     sourceRecipeId = sourceRecipeId,
     source = MealSource.AI_CHAT,
 )
@@ -106,6 +108,7 @@ fun PhotoEstimateDto.toLoggedMeals(
     mealType: MealType,
     photoPath: String?,
     eatenAt: Long = System.currentTimeMillis(),
+    estimateModel: String? = null,
 ): List<LoggedMealEntity> = items.map { item ->
     val (quantity, unit) = item.structuredPortion() ?: (1.0 to PortionUnit.SERVING)
     LoggedMealEntity(
@@ -122,6 +125,7 @@ fun PhotoEstimateDto.toLoggedMeals(
         macros = item.macros.toMacros(),
         isAiEstimate = true,
         estimateConfidence = confidenceToScore(item.confidence),
+        estimateModel = estimateModel,
         source = MealSource.PHOTO,
         photoPath = photoPath,
         notes = item.uncertaintyNote,

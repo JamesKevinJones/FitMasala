@@ -44,9 +44,11 @@ sealed interface SnapMealState {
         val mealType: MealType,
         val estimate: PhotoEstimateDto,
         val advisories: List<String>,
+        /** The model that estimated the photo, as the API named it. */
+        val model: String? = null,
         val logging: Boolean = false,
         /** What the user has made of the model's dishes. Starts as the model's answer. */
-        val dishes: List<ReviewDish> = estimate.items.map { ReviewDish(it) },
+        val dishes: List<ReviewDish> = estimate.items.map { ReviewDish(it, model = model) },
         /** A typed dish is being estimated. */
         val addingDish: Boolean = false,
         /** Why the last typed dish could not be added, in words; null when there is nothing to say. */
@@ -78,8 +80,12 @@ sealed interface SnapMealState {
          * index. Their advisories join the sheet's, where they are seen before
          * logging like any other.
          */
-        fun withAddedDishes(items: List<PhotoItemDto>, newAdvisories: List<String>): Review = copy(
-            dishes = dishes + items.map { ReviewDish(it) },
+        fun withAddedDishes(
+            items: List<PhotoItemDto>,
+            newAdvisories: List<String>,
+            model: String? = null,
+        ): Review = copy(
+            dishes = dishes + items.map { ReviewDish(it, model = model) },
             advisories = advisories + newAdvisories,
             addingDish = false,
             addError = null,
@@ -88,11 +94,13 @@ sealed interface SnapMealState {
         /**
          * One row per kept Dish, through the same mapper every photo log uses - so
          * a corrected dish is still an Estimate with the model's confidence and its
-         * original wording in the portion note.
+         * original wording in the portion note. Each row names the model that
+         * estimated its own dish: a typed dish came from a separate call.
          */
         fun toLoggedDishes(): List<LoggedMealEntity> =
             estimate.copy(items = kept.map { it.toItem() })
                 .toLoggedMeals(mealType = mealType, photoPath = photoPath, eatenAt = eatenAt)
+                .zip(kept) { row, dish -> row.copy(estimateModel = dish.model) }
 
         fun withMealType(chosen: MealType): Review =
             if (logging) this else copy(mealType = chosen, mealTypeChosen = true)
@@ -169,6 +177,8 @@ data class ReviewDish(
     val name: String = original.name,
     val quantity: Double = original.structuredPortion()?.first ?: 1.0,
     val removed: Boolean = false,
+    /** The model that estimated this dish; recorded on its logged row. */
+    val model: String? = null,
 ) {
     /** The model's unit, or SERVING when it could not be trusted (the mapper's fallback). */
     val unit: PortionUnit get() = original.structuredPortion()?.second ?: PortionUnit.SERVING

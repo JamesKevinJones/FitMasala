@@ -144,6 +144,7 @@ class SnapMealViewModel @Inject constructor(
                     mealType = mealType,
                     estimate = result.value,
                     advisories = result.advisories,
+                    model = result.model,
                 )
                 is LlmResult.Failure -> failureFor(result, path, eatenAt, mealType)
             }
@@ -272,7 +273,7 @@ class SnapMealViewModel @Inject constructor(
                     if (result.value.items.isEmpty()) {
                         current.copy(addingDish = false, addError = noDishMessage(description, result.value.containsFood))
                     } else {
-                        current.withAddedDishes(result.value.items, result.advisories)
+                        current.withAddedDishes(result.value.items, result.advisories, result.model)
                     }
                 is LlmResult.Failure -> current.copy(addingDish = false, addError = result.message)
             }
