@@ -1,0 +1,12 @@
+{
+  "status": 1,
+  "product": {
+    "product_name": "Masala oats",
+    "nutriments": {
+      "energy_100g": 1590,
+      "proteins_100g": 11,
+      "carbohydrates_100g": 64,
+      "fat_100g": 7
+    }
+  }
+}

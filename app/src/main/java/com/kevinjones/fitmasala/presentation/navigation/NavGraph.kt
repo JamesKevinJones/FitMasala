@@ -10,6 +10,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.kevinjones.fitmasala.core.ui.theme.horizontalMargin
 import com.kevinjones.fitmasala.core.ui.theme.screenContentPadding
+import com.kevinjones.fitmasala.presentation.barcode.BarcodeScreen
 import com.kevinjones.fitmasala.presentation.chef.AiChefScreen
 import com.kevinjones.fitmasala.presentation.chef.ChefScreen
 import com.kevinjones.fitmasala.presentation.dashboard.DashboardScreen
@@ -67,6 +68,26 @@ fun FitMasalaNavGraph(
                 onLogged = { summary ->
                     onMessage(summary)
                     navController.popBackStack()
+                },
+            )
+        }
+        composable(Routes.BARCODE) {
+            BarcodeScreen(
+                contentPadding = screenContentPadding(
+                    innerPadding,
+                    windowSizeClass.horizontalMargin(),
+                ),
+                onClose = { navController.popBackStack() },
+                onLogged = { summary ->
+                    onMessage(summary)
+                    navController.popBackStack()
+                },
+                // No label online: type it instead. Replaces the scan, so back
+                // goes to where the scan started rather than to a dead end.
+                onTypeLabel = {
+                    navController.navigate(Routes.LOG_MEAL) {
+                        popUpTo(Routes.BARCODE) { inclusive = true }
+                    }
                 },
             )
         }

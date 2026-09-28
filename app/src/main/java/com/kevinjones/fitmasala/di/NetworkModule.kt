@@ -7,6 +7,7 @@ import com.kevinjones.fitmasala.data.remote.GeminiAuthInterceptor
 import com.kevinjones.fitmasala.data.remote.api.AnthropicApi
 import com.kevinjones.fitmasala.data.remote.api.GeminiApi
 import com.kevinjones.fitmasala.data.remote.apiJson
+import com.kevinjones.fitmasala.data.remote.food.OpenFoodFactsApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -93,5 +94,38 @@ object NetworkModule {
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
             .create(GeminiApi::class.java)
+    }
+
+    /**
+     * Open Food Facts gets a client of its own with no key interceptor at all:
+     * neither LLM key can ride on a barcode lookup. It asks callers to name
+     * themselves in the User-Agent; the app says what it is and nothing about
+     * the user.
+     */
+    @Provides
+    @Singleton
+    fun provideOpenFoodFactsApi(json: Json): OpenFoodFactsApi {
+        val client = OkHttpClient.Builder()
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .header("User-Agent", "FitMasala/${BuildConfig.VERSION_NAME} (Android)")
+                        .build(),
+                )
+            }
+            .apply {
+                if (BuildConfig.DEBUG) {
+                    addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC })
+                }
+            }
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .build()
+        return Retrofit.Builder()
+            .baseUrl(OpenFoodFactsApi.BASE_URL)
+            .client(client)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+            .create(OpenFoodFactsApi::class.java)
     }
 }

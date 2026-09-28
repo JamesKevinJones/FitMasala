@@ -29,6 +29,7 @@ serializationJson = "1.7.3"
 retrofit = "2.11.0"
 retrofitSerialization = "1.0.0"
 okhttp = "4.12.0"
+codeScanner = "16.1.0"
 
 junit = "4.13.2"
 androidxTestJunit = "1.2.1"
@@ -36,6 +37,8 @@ espresso = "3.6.1"
 turbine = "1.2.0"
 
 [libraries]
+# Google's barcode scanner UI, via Play services: no camera permission, no CameraX.
+play-services-code-scanner = { group = "com.google.android.gms", name = "play-services-code-scanner", version.ref = "codeScanner" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }

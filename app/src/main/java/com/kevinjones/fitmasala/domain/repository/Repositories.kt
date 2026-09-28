@@ -3,6 +3,7 @@ package com.kevinjones.fitmasala.domain.repository
 import com.kevinjones.fitmasala.data.local.entity.BodyMetricEntity
 import com.kevinjones.fitmasala.data.local.entity.LoggedMealEntity
 import com.kevinjones.fitmasala.data.local.entity.Macros
+import com.kevinjones.fitmasala.data.local.entity.MealSource
 import com.kevinjones.fitmasala.data.local.entity.MealType
 import com.kevinjones.fitmasala.data.local.entity.PortionUnit
 import com.kevinjones.fitmasala.data.local.relation.DailyMacroTotals
@@ -59,6 +60,9 @@ interface MealRepository {
         fatG: Double,
         eatenAt: Long = System.currentTimeMillis(),
         photoPath: String? = null,
+        fiberG: Double = 0.0,
+        /** MANUAL for typed numbers, BARCODE for a label from Open Food Facts. Never an Estimate. */
+        source: MealSource = MealSource.MANUAL,
     ): Long
 
     /**

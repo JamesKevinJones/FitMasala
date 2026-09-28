@@ -937,3 +937,37 @@ starting over after a break, meant clearing app data.
 - **An edited goal is checked against where you are now**, not where the cut
   started: someone already leaner than their old start needs a goal below
   today's number.
+
+## 2026-09-28 — Barcode lookup: Open Food Facts, Google's scanner, no cache
+
+**Context.** Packaged food has an exact label, so estimating it from a photo
+throws information away. The 2026-09-27 entry left barcode lookup for later,
+as label values rather than Estimates.
+
+**Decision (Kevin's choices).**
+
+- **Open Food Facts is the one network call that is not an LLM request.** It
+  receives a barcode and nothing else: no key, no account, no meal data, on
+  its own OkHttp client with no key interceptor and a User-Agent naming the
+  app, not the user. This amends the "only the user's LLM calls" line in
+  AGENTS.md.
+- **Google Code Scanner reads the barcode** (`play-services-code-scanner`).
+  Play services owns the camera, so the app needs no camera permission for it
+  and no CameraX (rejected in #14). Retail formats only (EAN-8/13, UPC-A/E).
+  The digits can always be typed, so a phone without the scanner still works.
+- **Label values, logged as `MealSource.BARCODE`, never an Estimate.** Stored by
+  name, so the new source needs no migration. A product that Open Food Facts
+  doesn't know, or knows without calories, sends the user to "Log a meal" to
+  type the label.
+- **Servings when the label has one, else grams (ml for drinks).** Macros are
+  always computed from the per-100 figures, so stepping never drifts. kcal
+  falls back to kJ / 4.184 when only kJ is given.
+- **No product cache.** A logged product appears in "log again", which already
+  works offline, so a Room table and a schema migration were not worth it.
+
+**Sources, 2026-09-28:** the endpoint, `fields` handling, 404 / `status: 0` for
+unknown products, and field names come from the official SDKs (Python
+`openfoodfacts` 5.3.0 and Node `@openfoodfacts/openfoodfacts-nodejs`
+2.0.0-alpha.35). world.openfoodfacts.org and Google Maven's download host were
+not reachable from the build container, so the test fixtures are built from
+those shapes and the scanner API is unchecked until the first local build.
