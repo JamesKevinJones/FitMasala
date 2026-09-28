@@ -1,0 +1,28 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "Balancing the dal against the ghee...",
+            "thought": true
+          },
+          {
+            "text": "{\"title\": \"Dal tadka\", \"titleLocal\": \"दाल तड़का\", \"region\": \"PUNJABI\", \"provenanceNote\": \"A Punjabi dhaba staple: toor dal finished with a ghee tadka.\", \"cookingMethod\": \"TADKA\", \"servings\": 2, \"prepMinutes\": 10, \"cookMinutes\": 30, \"ingredients\": [{\"name\": \"Toor dal\", \"nameLocal\": \"अरहर दाल\", \"quantity\": 100, \"unit\": \"g\", \"preparationNote\": \"rinsed\", \"gramsDry\": 100, \"gramsCooked\": 300, \"isOptional\": false}, {\"name\": \"Ghee\", \"nameLocal\": null, \"quantity\": 1, \"unit\": \"tbsp\", \"preparationNote\": null, \"gramsDry\": null, \"gramsCooked\": null, \"isOptional\": false}, {\"name\": \"Jeera\", \"nameLocal\": null, \"quantity\": 1, \"unit\": \"tsp\", \"preparationNote\": null, \"gramsDry\": null, \"gramsCooked\": null, \"isOptional\": false}], \"instructions\": [\"Pressure-cook the dal with turmeric for 3 whistles.\", \"Heat ghee, crackle jeera, pour over the dal.\"], \"techniqueNotes\": [\"Add the tadka at the table so the ghee still sizzles.\"], \"macrosPerServing\": {\"calories\": 245, \"proteinG\": 12, \"carbsG\": 30, \"fatG\": 8.5, \"fiberG\": 7}, \"portionDescription\": \"1 katori (about 150 g cooked)\"}"
+          }
+        ]
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 900,
+    "candidatesTokenCount": 520,
+    "thoughtsTokenCount": 1100,
+    "totalTokenCount": 2520
+  },
+  "modelVersion": "gemini-3.1-flash",
+  "responseId": "r-recipe"
+}

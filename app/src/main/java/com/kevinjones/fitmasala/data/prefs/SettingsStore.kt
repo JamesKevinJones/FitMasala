@@ -35,8 +35,8 @@ enum class ThemeMode(val label: String, val description: String) {
 }
 
 /**
- * Who estimates meals - photos and typed dishes. Each provider has its own key.
- * The Chef stays on Anthropic for now (#24).
+ * Who answers every AI call - Chef recipes, photos and typed dishes (#24).
+ * Each provider has its own key.
  *
  * The app never switches between them on its own: a change of estimator shifts
  * the bias `AdaptiveTdee` relies on being consistent, so it is always the user's
@@ -51,7 +51,7 @@ enum class LlmProvider(val label: String, val description: String) {
 data class AppSettings(
     /** The Anthropic key. */
     val apiKey: String = "",
-    /** Who estimates meals. */
+    /** Who answers every AI call: the chef and meal estimates. */
     val provider: LlmProvider = LlmProvider.ANTHROPIC,
     /** Anthropic model override; blank means the shipped default. */
     val modelId: String = "",

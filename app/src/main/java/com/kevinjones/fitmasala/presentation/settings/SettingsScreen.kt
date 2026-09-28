@@ -94,14 +94,14 @@ fun SettingsScreen(
         }
 
         item("api-header") { SectionHeader("AI") }
-        item("estimates") { EstimatesCard(settings.provider, onProvider) }
+        item("provider") { ProviderCard(settings.provider, onProvider) }
         item("api") {
             ApiKeyCard(
                 title = "Anthropic key",
                 hasKey = settings.hasApiKey,
                 maskedKey = settings.maskedApiKey,
-                description = "The chef always uses Claude, and so do meal estimates when Claude is " +
-                    "chosen above. The app talks to Anthropic directly with your own key.",
+                description = "Used for the chef and meal estimates when Claude is chosen above. " +
+                    "The app talks to Anthropic directly with your own key.",
                 placeholder = "sk-ant-...",
                 onSave = onApiKey,
                 onClear = onClearApiKey,
@@ -112,8 +112,8 @@ fun SettingsScreen(
                 title = "Gemini key",
                 hasKey = settings.hasGeminiApiKey,
                 maskedKey = settings.maskedGeminiApiKey,
-                description = "Used only for meal estimates, when Gemini is chosen above. The app talks " +
-                    "to Google directly with your own key, from Google AI Studio.",
+                description = "Used for the chef and meal estimates when Gemini is chosen above. The app " +
+                    "talks to Google directly with your own key, from Google AI Studio.",
                 placeholder = "AIza...",
                 onSave = onGeminiApiKey,
                 onClear = onClearGeminiApiKey,
@@ -158,18 +158,19 @@ fun SettingsScreen(
 }
 
 /**
- * Who estimates meals. A radio group, because exactly one answers - the app
- * never falls back to the other (DECISIONS 2026-09-27).
+ * Who answers every AI call - the chef and meal estimates alike. A radio group,
+ * because exactly one answers - the app never falls back to the other
+ * (DECISIONS 2026-09-27).
  */
 @Composable
-private fun EstimatesCard(provider: LlmProvider, onProvider: (LlmProvider) -> Unit) {
+private fun ProviderCard(provider: LlmProvider, onProvider: (LlmProvider) -> Unit) {
     FmCard(
         Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(vertical = Fm.tight),
         verticalArrangement = Arrangement.spacedBy(Fm.hair),
     ) {
         Text(
-            text = "Meal estimates",
+            text = "AI provider",
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = Fm.gutter),
         )
@@ -184,8 +185,8 @@ private fun EstimatesCard(provider: LlmProvider, onProvider: (LlmProvider) -> Un
             }
         }
         Text(
-            text = "Switching changes how meals are estimated, so your plan takes a couple of " +
-                "weeks of weigh-ins to settle again." +
+            text = "Used by the chef and for meal estimates. Switching changes how meals are " +
+                "estimated, so your plan takes a couple of weeks of weigh-ins to settle again." +
                 if (provider == LlmProvider.GEMINI) {
                     " On Gemini's free tier, Google may use the photos you send to improve its products."
                 } else {
