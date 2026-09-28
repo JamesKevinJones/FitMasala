@@ -21,21 +21,21 @@ import javax.inject.Singleton
  * Settings takes effect immediately without restarting anything.
  */
 @Singleton
-class AnthropicAuthInterceptor @Inject constructor(
-    private val settingsStore: SettingsStore,
+class AnthropicAuthInterceptor internal constructor(
+    private val key: () -> String?,
 ) : Interceptor {
 
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val settings = runBlocking { settingsStore.current() }
+    @Inject
+    constructor(settingsStore: SettingsStore) : this({ runBlocking { settingsStore.current().apiKey } })
 
-        if (!settings.hasApiKey) {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val apiKey = key()?.takeIf { it.isNotBlank() }
             // Fail here rather than sending an unauthenticated request and
             // surfacing a 401 that reads like a bad key rather than no key.
-            throw MissingApiKeyException()
-        }
+            ?: throw MissingApiKeyException()
 
         val request = chain.request().newBuilder()
-            .addHeader("x-api-key", settings.apiKey)
+            .addHeader("x-api-key", apiKey)
             .addHeader("anthropic-version", AnthropicApi.VERSION_HEADER)
             .addHeader("anthropic-beta", AnthropicApi.FALLBACK_BETA)
             .addHeader("content-type", "application/json")

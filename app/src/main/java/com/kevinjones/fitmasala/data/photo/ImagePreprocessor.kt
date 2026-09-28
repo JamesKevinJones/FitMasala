@@ -36,19 +36,9 @@ import javax.inject.Singleton
 @Singleton
 class ImagePreprocessor @Inject constructor() {
 
-    /**
-     * 1568px on the long edge is the point past which the major vision APIs stop
-     * gaining accuracy and start just costing more — they downscale to roughly
-     * this internally. Sending more pixels than this is pure waste.
-     */
-    private val maxEdgePx = 1568
-
-    /**
-     * 85 is the knee of the quality/size curve for photographic content. Below
-     * about 75, compression artefacts start blurring the texture cues the model
-     * uses to tell a dry sabzi from one swimming in oil.
-     */
-    private val jpegQuality = 85
+    // Sizes and quality come from PhotoSizing, shared with the #23 comparison runner.
+    private val maxEdgePx = PhotoSizing.MAX_EDGE_PX
+    private val jpegQuality = PhotoSizing.JPEG_QUALITY
 
     suspend fun prepare(file: File): PreparedImage = withContext(Dispatchers.Default) {
         require(file.exists() && file.length() > 0) { "photo file missing or empty: ${file.path}" }
@@ -88,33 +78,13 @@ class ImagePreprocessor @Inject constructor() {
         )
     }
 
-    /**
-     * Largest power-of-two subsample that still leaves the image at or above the
-     * target. Powers of two because BitmapFactory rounds down to one anyway, and
-     * they are the only values it decodes without an intermediate allocation.
-     */
-    internal fun calculateSampleSize(width: Int, height: Int, targetEdge: Int): Int {
-        var sample = 1
-        var w = width
-        var h = height
-        while (maxOf(w, h) / 2 >= targetEdge) {
-            w /= 2
-            h /= 2
-            sample *= 2
-        }
-        return sample
-    }
+    internal fun calculateSampleSize(width: Int, height: Int, targetEdge: Int): Int =
+        PhotoSizing.sampleSize(width, height, targetEdge)
 
     private fun scaleToMaxEdge(source: Bitmap, targetEdge: Int): Bitmap {
-        val longEdge = maxOf(source.width, source.height)
-        if (longEdge <= targetEdge) return source
-        val ratio = targetEdge.toDouble() / longEdge
-        return Bitmap.createScaledBitmap(
-            source,
-            (source.width * ratio).toInt().coerceAtLeast(1),
-            (source.height * ratio).toInt().coerceAtLeast(1),
-            true,
-        )
+        val (w, h) = PhotoSizing.scaledSize(source.width, source.height, targetEdge)
+        if (w == source.width && h == source.height) return source
+        return Bitmap.createScaledBitmap(source, w, h, true)
     }
 
     private fun applyExifRotation(file: File, bitmap: Bitmap): Bitmap {

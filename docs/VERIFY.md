@@ -121,3 +121,42 @@ entirely into the computed maintenance figure and cancels out of the deficit.
   broken. `Modifier.brutShadow` draws outside its own bounds by design.
 - The rest timer must survive screen-off. Verify by starting a set, locking the
   phone for 90s, and unlocking — not by watching it in the foreground.
+
+## Claude vs Gemini on your own meals (#23)
+
+A one-off, opt-in run that sends each of your photos through **both**
+providers with the app's own sizing, prompts, schema and parsing, then writes a
+report. Ordinary test runs skip it; it only runs with the flag and both keys.
+
+1. Put 15-20 meal photos (JPEG or PNG) in a folder.
+2. Write `known.csv` next to them. Only `photo` and `calories` are required;
+   leave a macro blank if you don't know it. Portions are `name=quantity UNIT`
+   with a `PortionUnit` name (KATORI, ROTI, PIECE, PLATE, GLASS, TABLESPOON,
+   GRAMS, MILLILITRES, SERVING):
+
+   ```
+   photo,calories,protein_g,carbs_g,fat_g,meal_type,portions
+   thali.jpg,850,28,110,30,lunch,"Dal=1 KATORI; Roti=2 ROTI; Rice=1 KATORI"
+   ```
+
+3. Run, in the same PowerShell window (the keys live only in that session):
+
+   ```
+   $env:FITMASALA_COMPARE = "1"
+   $env:ANTHROPIC_API_KEY = "sk-ant-..."
+   $env:GEMINI_API_KEY = "AIza..."
+   $env:FITMASALA_COMPARE_PHOTOS = "C:\meals"
+   $env:FITMASALA_COMPARE_TRUTH = "C:\meals\known.csv"
+   $env:FITMASALA_GEMINI_PRICE = "<in>,<out>"   # $ per million tokens, from Google's price page
+   .\gradlew.bat :app:testDebugUnitTest --tests "*ClaudeVsGeminiRun*" --rerun
+   ```
+
+4. Read `app\build\compare\report.md`: every photo per provider, then median
+   and mean absolute calorie error, share within ±20%, portion units matched and
+   cost per photo, then the verdict from the rule fixed in advance (Gemini
+   becomes the default only if its median error is within Claude's plus 5
+   points). Paste the headline numbers under the 2026-09-27 Gemini entry in
+   `docs/DECISIONS.md`.
+
+Claude is priced at $5 / $25 per million tokens (`claude-opus-5`); override with
+`FITMASALA_CLAUDE_PRICE`. A rejected key stops the run at the first photo.
