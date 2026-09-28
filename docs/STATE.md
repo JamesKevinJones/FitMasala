@@ -83,22 +83,19 @@ solver, plan engine) and `domain/progress/` (streaks, XP), pure Kotlin.
 Snap a meal (camera or gallery, review sheet, per-Dish editing, typed Dishes,
 failure paths, log by hand), Log a meal (FAB: one typed dish, MANUAL not an
 Estimate, movable time), Train + Active Session, Plan (setup form, weigh-in
-sheet with optional tape, trend chart, projection), Settings (theme, AI
+sheet with optional tape, trend chart, projection, edit or restart the cut), Settings (theme, AI
 provider, keys, rest timer).
 
 ## Known issues
 
-- **A cut cannot be edited once started** - "Start a cut" is only offered
-  while no goal exists. Starting over means clearing app data.
 - **The Train overline is static text** ("Push · Pull · Legs"), as is the
   Chef's; only Today and Plan show live values.
 
 ## Next
 
 After the steps above, the project is feature-complete for its brief. Likely
-follow-ups, none started: editing or restarting a cut from the Plan tab, and
-barcode lookup against Open Food Facts (DECISIONS 2026-09-27 marks it as a
-separate, later feature).
+follow-up, not started: barcode lookup against Open Food Facts (DECISIONS
+2026-09-27 marks it as a separate, later feature).
 
 ## Device automation - do not repeat
 

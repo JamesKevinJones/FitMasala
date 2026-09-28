@@ -7,7 +7,9 @@ import com.kevinjones.fitmasala.data.local.entity.MealType
 import com.kevinjones.fitmasala.data.local.entity.PortionUnit
 import com.kevinjones.fitmasala.data.local.relation.DailyMacroTotals
 import com.kevinjones.fitmasala.data.local.relation.FrequentMeal
+import com.kevinjones.fitmasala.domain.plan.ActivityLevel
 import com.kevinjones.fitmasala.domain.plan.AdaptiveState
+import com.kevinjones.fitmasala.domain.plan.CutAggression
 import com.kevinjones.fitmasala.domain.plan.PlanAdjustment
 import com.kevinjones.fitmasala.domain.plan.PlanProjection
 import com.kevinjones.fitmasala.domain.plan.Sex
@@ -89,6 +91,21 @@ data class PlanSnapshot(
     val startedAtDayEpoch: Long? = null,
     /** The active cut's sex, so the weigh-in form knows whether hip is part of the tape. */
     val sex: Sex? = null,
+    /** The active cut's settings, for the edit and restart forms; null without one. */
+    val cut: ActiveCut? = null,
+)
+
+/** The active cut as the forms need it: what it started from and what it aims at. */
+data class ActiveCut(
+    val sex: Sex,
+    val heightCm: Double,
+    val ageYears: Int,
+    val activity: ActivityLevel,
+    val aggression: CutAggression,
+    val goalBodyFatPercent: Double,
+    val startWeightKg: Double,
+    val startBodyFatPercent: Double,
+    val startedAtDayEpoch: Long,
 )
 
 interface PlanRepository {
@@ -115,6 +132,18 @@ interface PlanRepository {
         startBodyFatPercent: Double,
         goalBodyFatPercent: Double,
         tape: TapeMeasurements? = null,
+    )
+
+    /**
+     * Changes where the active cut is heading - goal, pace, activity, age - without
+     * touching where it started. The old settings are retired, not overwritten, so
+     * the start weight, start date and history stay as they were.
+     */
+    suspend fun updateCut(
+        ageYears: Int,
+        activityLevel: String,
+        aggression: String,
+        goalBodyFatPercent: Double,
     )
 }
 

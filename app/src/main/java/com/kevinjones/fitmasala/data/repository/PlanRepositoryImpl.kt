@@ -19,6 +19,7 @@ import com.kevinjones.fitmasala.domain.plan.Sex
 import com.kevinjones.fitmasala.domain.plan.TapeMeasurements
 import com.kevinjones.fitmasala.domain.plan.WeightEntry
 import com.kevinjones.fitmasala.domain.plan.WeightTrend
+import com.kevinjones.fitmasala.domain.repository.ActiveCut
 import com.kevinjones.fitmasala.domain.repository.PlanRepository
 import com.kevinjones.fitmasala.domain.repository.PlanSnapshot
 import kotlinx.coroutines.flow.Flow
@@ -130,6 +131,17 @@ class PlanRepositoryImpl @Inject constructor(
             needsSetup = false,
             startedAtDayEpoch = goal.startedAtDayEpoch,
             sex = sex,
+            cut = ActiveCut(
+                sex = sex,
+                heightCm = goal.heightCm,
+                ageYears = goal.ageYears,
+                activity = activity,
+                aggression = aggression,
+                goalBodyFatPercent = goal.goalBodyFatPercent,
+                startWeightKg = goal.startWeightKg,
+                startBodyFatPercent = goal.startBodyFatPercent,
+                startedAtDayEpoch = goal.startedAtDayEpoch,
+            ),
         )
     }
 
@@ -198,6 +210,34 @@ class PlanRepositoryImpl @Inject constructor(
         // Seed the first weigh-in, so a new plan has a one-point trend instead
         // of an empty chart on the day it is created.
         logWeight(startWeightKg, tape?.waistCm, tape?.neckCm, tape?.hipCm)
+    }
+
+    override suspend fun updateCut(
+        ageYears: Int,
+        activityLevel: String,
+        aggression: String,
+        goalBodyFatPercent: Double,
+    ) {
+        val current = planDao.activeGoal() ?: return
+        // A new row that keeps the start (weight, body fat, date - so "week N"
+        // and "down X kg" don't move) and retires the old one. The cached target
+        // belonged to the old settings, so it is not carried over.
+        planDao.startNewGoal(
+            current.copy(
+                id = 0,
+                ageYears = ageYears,
+                activityLevel = activityLevel,
+                aggression = aggression,
+                goalBodyFatPercent = goalBodyFatPercent,
+                cachedTargetCalories = null,
+                cachedProteinG = null,
+                cachedCarbsG = null,
+                cachedFatG = null,
+                cachedMaintenanceCalories = null,
+                cachedAtDayEpoch = null,
+                createdAt = System.currentTimeMillis(),
+            ),
+        )
     }
 
     private fun sourceOf(raw: String?): BodyFatSource =

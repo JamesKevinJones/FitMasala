@@ -6,6 +6,8 @@ import com.kevinjones.fitmasala.domain.plan.BodyFatSource
 import com.kevinjones.fitmasala.domain.plan.CutAggression
 import com.kevinjones.fitmasala.domain.plan.Sex
 import com.kevinjones.fitmasala.domain.plan.TapeMeasurements
+import com.kevinjones.fitmasala.domain.repository.ActiveCut
+import java.util.Locale
 
 /**
  * The rules behind the two Plan forms, as plain Kotlin so they run as JVM tests.
@@ -51,6 +53,24 @@ data class CutSetupForm(
     val aggression: CutAggression = CutAggression.STANDARD,
     val goal: String = "12",
 ) {
+    companion object {
+        /**
+         * Starting over: a new cut prefilled from the one it replaces - who you are
+         * and how you train rarely change between cuts, and your weight today is
+         * the trend's latest value. Body fat is left blank on purpose: a new start
+         * deserves a new measurement, not the old cut's number carried forward.
+         */
+        fun restartFrom(cut: ActiveCut, currentWeightKg: Double?): CutSetupForm = CutSetupForm(
+            sex = cut.sex,
+            height = cut.heightCm.plain(),
+            age = cut.ageYears.toString(),
+            weight = currentWeightKg?.let { "%.1f".format(Locale.ROOT, it) }.orEmpty(),
+            activity = cut.activity,
+            aggression = cut.aggression,
+            goal = cut.goalBodyFatPercent.plain(),
+        )
+    }
+
     /**
      * Body fat from the tape, as soon as enough of it is typed - shown live under
      * the tape fields so the number the plan will use is never a surprise.
@@ -130,6 +150,54 @@ data class CutSetupForm(
         )
     }
 }
+
+/** What the edit form hands to `PlanRepository.updateCut`. */
+data class CutEdit(
+    val ageYears: Int,
+    val activity: ActivityLevel,
+    val aggression: CutAggression,
+    val goalBodyFatPercent: Double,
+)
+
+/**
+ * Changing where the cut is heading: goal, pace, activity, age. Not sex, height or
+ * the start - those define the cut itself, and changing them is starting a new one.
+ */
+data class CutEditForm(
+    val age: String,
+    val activity: ActivityLevel,
+    val aggression: CutAggression,
+    val goal: String,
+) {
+    /** [currentBodyFatPercent] is where you are now: the goal has to be below it. */
+    fun validate(currentBodyFatPercent: Double?): FormResult<CutEdit> {
+        val errors = mutableMapOf<PlanField, String>()
+        val age = age.trim().toIntOrNull()
+        if (age == null || age !in AGE_RANGE) errors[PlanField.AGE] = "Age in years, 16 to 90"
+        val goal = goal.toDecimal()
+        when {
+            goal == null || goal !in GOAL_RANGE -> errors[PlanField.GOAL] = "Goal in %, 5 to 40"
+            currentBodyFatPercent != null && goal >= currentBodyFatPercent ->
+                errors[PlanField.GOAL] = "The goal has to be below where you are now " +
+                    "(%.0f%%)".format(Locale.ROOT, currentBodyFatPercent)
+        }
+        if (errors.isNotEmpty()) return FormResult.Invalid(errors)
+        return FormResult.Valid(CutEdit(age!!, activity, aggression, goal!!))
+    }
+
+    companion object {
+        fun from(cut: ActiveCut) = CutEditForm(
+            age = cut.ageYears.toString(),
+            activity = cut.activity,
+            aggression = cut.aggression,
+            goal = cut.goalBodyFatPercent.plain(),
+        )
+    }
+}
+
+/** "178" rather than "178.0", "12.5" as is. */
+private fun Double.plain(): String =
+    if (this == Math.floor(this)) toLong().toString() else toString()
 
 /** One morning's reading. Tape is optional, but all-or-nothing when given. */
 data class WeighIn(
