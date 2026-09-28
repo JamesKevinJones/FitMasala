@@ -200,7 +200,7 @@ per decision. Read it before reversing something that looks arbitrary.
 3. ✅ AI networking — Retrofit service, DTOs, the culinary system prompt
 4. ✅ UI foundation — theme, component set, app shell, dashboard feed — nav graph, dashboard, full theme
 5. ✅ Feature screens — AI Chef chat, workout logging, Snap a meal (camera + gallery, review sheet, failure paths)
-6. ✅ Plan manager — engine, persistence, setup form, weigh-in sheet; photo estimates via Snap a meal (UI in PR #29, awaiting merge)
+6. ✅ Plan manager — engine, persistence, setup form, weigh-in sheet; photo estimates via Snap a meal
 
 Current position is always in `docs/STATE.md`.
 
