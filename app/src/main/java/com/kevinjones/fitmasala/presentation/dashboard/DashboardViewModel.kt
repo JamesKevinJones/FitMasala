@@ -65,11 +65,13 @@ class DashboardViewModel @Inject constructor(
         settings.settings,
         sessionDao.observeRecentSessions()
     ) { flows ->
+        @Suppress("UNCHECKED_CAST")
         val today = flows[0] as List<LoggedMealEntity>
         val totals = flows[1] as DailyMacroTotals
         val plan = flows[2] as PlanSnapshot
         val prog = flows[3] as ProgressSnapshot
         val prefs = flows[4] as AppSettings
+        @Suppress("UNCHECKED_CAST")
         val workouts = flows[5] as List<SessionSummary>
 
         DashboardUiState(

@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kevinjones.fitmasala.core.ui.components.FmButton
+import com.kevinjones.fitmasala.core.ui.components.FmButtonTonal
 import com.kevinjones.fitmasala.core.ui.components.FmCard
 import com.kevinjones.fitmasala.core.ui.components.FmTextField
 import com.kevinjones.fitmasala.core.ui.theme.Fm
@@ -21,7 +22,6 @@ import com.kevinjones.fitmasala.core.ui.theme.fm
 import com.kevinjones.fitmasala.data.local.entity.ExerciseEntity
 import com.kevinjones.fitmasala.data.local.relation.SetWithExercise
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActiveSessionScreen(
     contentPadding: PaddingValues,
@@ -36,39 +36,46 @@ fun ActiveSessionScreen(
         return
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize().padding(contentPadding),
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showAddExercise = true }) {
-                Icon(Icons.Default.Add, "Add exercise")
-            }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(contentPadding)
+    ) {
+        if (state.isResting) {
+            RestTimer(state.restSeconds, viewModel::cancelRest)
         }
-    ) { padding ->
-        Column(Modifier.padding(padding).fillMaxSize()) {
-            if (state.isResting) {
-                RestTimer(state.restSeconds, viewModel::cancelRest)
-            }
 
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(Fm.gutter),
-                verticalArrangement = Arrangement.spacedBy(Fm.snug)
-            ) {
-                val grouped = state.setsWithExercise.groupBy { it.exercise.id }
-                grouped.forEach { (exerciseId, sets) ->
-                    item(key = exerciseId) {
-                        ExerciseSection(sets[0].exercise, sets, viewModel::addSet)
-                    }
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(Fm.gutter),
+            verticalArrangement = Arrangement.spacedBy(Fm.snug)
+        ) {
+            val grouped = state.setsWithExercise.groupBy { it.exercise.id }
+            grouped.forEach { (exerciseId, sets) ->
+                item(key = exerciseId) {
+                    ExerciseSection(sets[0].exercise, sets, viewModel::addSet)
                 }
             }
+        }
 
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = Fm.gutter, vertical = Fm.snug),
+            horizontalArrangement = Arrangement.spacedBy(Fm.gutter)
+        ) {
+            FmButtonTonal(
+                text = "Add exercise",
+                onClick = { showAddExercise = true },
+                modifier = Modifier.weight(1f)
+            )
             FmButton(
-                "Finish Workout",
+                text = "Finish workout",
                 onClick = {
                     viewModel.finishSession()
                     onFinish()
                 },
-                modifier = Modifier.fillMaxWidth().padding(Fm.gutter)
+                modifier = Modifier.weight(1f)
             )
         }
     }

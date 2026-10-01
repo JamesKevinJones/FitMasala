@@ -201,4 +201,21 @@ class MealDaoTest {
         assertEquals("/photos/other.jpg", dao.byId(keep)!!.photoPath)
         assertEquals(1, dao.observeDayTotals(20_000).first().mealCount)
     }
+
+    @Test
+    fun frequentMealsAverageEveryMacroAndRememberEstimates() = runTest {
+        val label = Macros(calories = 300.0, proteinG = 7.0, carbsG = 50.0, fatG = 8.0, fiberG = 2.0)
+        dao.insert(meal("Poha", 20_000, label).copy(isAiEstimate = false))
+        dao.insert(meal("Poha", 20_001, label.copy(carbsG = 54.0, fatG = 10.0, fiberG = 4.0)).copy(isAiEstimate = false))
+        dao.insert(meal("Dal", 20_001, label).copy(isAiEstimate = false))
+        dao.insert(meal("Dal", 20_002, label).copy(isAiEstimate = true))
+
+        val frequent = dao.observeFrequentMeals().first().associateBy { it.name }
+
+        assertEquals(52.0, frequent.getValue("Poha").avgCarbsG, 0.001)
+        assertEquals(9.0, frequent.getValue("Poha").avgFatG, 0.001)
+        assertEquals(3.0, frequent.getValue("Poha").avgFiberG, 0.001)
+        assertEquals(false, frequent.getValue("Poha").anyEstimate)
+        assertEquals(true, frequent.getValue("Dal").anyEstimate)
+    }
 }
