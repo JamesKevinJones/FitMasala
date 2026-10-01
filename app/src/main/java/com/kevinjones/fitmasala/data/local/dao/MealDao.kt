@@ -137,7 +137,11 @@ interface MealDao {
             MAX(eatenAt) AS lastEatenAt,
             AVG(calories) AS avgCalories,
             AVG(proteinG) AS avgProteinG,
-            AVG(portionQuantity) AS avgPortionQuantity
+            AVG(carbsG) AS avgCarbsG,
+            AVG(fatG) AS avgFatG,
+            AVG(fiberG) AS avgFiberG,
+            AVG(portionQuantity) AS avgPortionQuantity,
+            MAX(isAiEstimate) AS anyEstimate
         FROM logged_meals
         GROUP BY name
         ORDER BY timesLogged DESC, lastEatenAt DESC

@@ -73,11 +73,11 @@ class MealRepositoryImpl @Inject constructor(
                 macros = Macros(
                     calories = source.avgCalories * scale,
                     proteinG = source.avgProteinG * scale,
-                    // If these are missing from FrequentMeal, they stay 0.0
-                    carbsG = source.avgCalories * 0.0, 
-                    fatG = source.avgCalories * 0.0,
+                    carbsG = source.avgCarbsG * scale,
+                    fatG = source.avgFatG * scale,
+                    fiberG = source.avgFiberG * scale,
                 ),
-                isAiEstimate = true,
+                isAiEstimate = source.anyEstimate,
                 source = MealSource.REPEATED,
             ),
         )
