@@ -23,12 +23,15 @@ navigation, the v1 -> v2 migration and the instrumented suites.
 
 Each step is one issue and one PR.
 
-1. ✅ Record the decision, delete the comparison tool, commit schema v2.
-2. ⬜ Port the fixes found on 2026-10-01:
-   - Repeated meals log zero carbs and fat.
-   - Add a meal detail view with delete (`deleteMeal` has no caller).
-   - Back navigation on sub-screens other than Settings.
-   - Remove the active session's nested Scaffold and second FAB.
+1. ✅ Record the decision, delete the comparison tool, commit schema v2 (#37).
+2. ✅ Port the fixes found on 2026-10-01:
+   - "Log again" wrote carbs, fat and fibre as zero, and marked label values as
+     Estimates.
+   - Tapping a logged Dish opens its details, with delete.
+   - The workout session drew two FABs in one corner.
+
+   Back navigation on sub-screens was suspected too, but the NavHost's own back
+   handler already pops them; check it on the phone before changing anything.
 3. ⬜ Brag video: the badge "100% on-device · IFCT-calibrated" was never true.
    It becomes "No backend · no account"; re-render with a new poster.
 4. ⬜ Dish catalogue:
