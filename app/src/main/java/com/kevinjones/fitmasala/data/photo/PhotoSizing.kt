@@ -2,12 +2,7 @@ package com.kevinjones.fitmasala.data.photo
 
 import kotlin.math.roundToInt
 
-/**
- * How a meal photo is sized before upload, as plain Kotlin so the app's
- * [ImagePreprocessor] and the JVM comparison runner (#23) share one set of
- * numbers - a runner that sent bigger or sharper photos than the app would be
- * measuring a different estimator.
- */
+/** How a meal photo is sized before upload: the long-edge cap and JPEG quality. */
 object PhotoSizing {
 
     /**
