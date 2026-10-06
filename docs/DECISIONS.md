@@ -971,3 +971,61 @@ unknown products, and field names come from the official SDKs (Python
 2.0.0-alpha.35). world.openfoodfacts.org and Google Maven's download host were
 not reachable from the build container, so the test fixtures are built from
 those shapes and the scanner API is unchecked until the first local build.
+
+---
+
+## 2026-10-01 — All AI runs on the phone: no keys, no Claude, no Gemini, no network
+
+**Decision:** FitMasala holds no API key and makes no network call. Every model
+runs on the device, and no model ever writes a number.
+
+- **Numbers come from the dish catalogue**, a sourced table in the repo. Each
+  ingredient row cites USDA FoodData Central or the label of what is actually
+  bought; each catalogue dish is ingredient grams per Portion, a katori being a
+  fixed 150 ml. A Dish's macros are its catalogue dish times its Portion.
+- **Recognition names dishes, on the phone.** A bundled image embedder compares
+  a new meal photo with the user's confirmed photos. If the closest is near
+  enough, the review sheet opens pre-filled with that photo's Dishes, plus
+  chips from the next few matches; otherwise it opens empty, with catalogue
+  search. The review sheet stays mandatory.
+- **Recognition learns only from confirmed photos.** Each keeps an embedding
+  and a 224 px thumbnail, and is forgotten once every Dish from that photo is
+  deleted. The full photo still expires at 90 days.
+- **A catalogue value is an Estimate.** Estimate now means any number not from
+  a label or a scale: judged by a cloud model on older Dishes, taken from the
+  catalogue from now on. The display rule stays two-way.
+- **A typed dish the catalogue lacks goes to "Log a meal"**, as label values or
+  the user's own numbers. Logging is never blocked on a missing catalogue dish.
+- **The Chef becomes a recipe library**: catalogue dishes that also have a
+  method, chosen from and never generated.
+- **Removed:** the Anthropic and Gemini backends, the provider setting and its
+  keys, the Claude vs Gemini comparison runner (#23), barcode lookup against
+  Open Food Facts, and the `INTERNET` and `ACCESS_NETWORK_STATE` permissions.
+
+**Why:** Kevin's call: all the AI on-device, no API key, no Claude. Two
+consequences shaped the rest.
+
+- **A small on-device model guessing calories would be confidently wrong.** So
+  models only pick dishes and a sourced table writes every number. That also
+  keeps the number proportional to the Portion actually eaten, the property
+  `AdaptiveTdee` relies on to cancel a consistent bias.
+- **There is no labelled set of Kevin's meals to train on.** So "on-device
+  training" means learning his own plates from the photos he confirms, by
+  nearest match on an embedding, not by fine-tuning a classifier.
+
+**Rejected:**
+
+- **A colour classifier** that mapped pixel hues to fixed dishes with "high"
+  confidence. It was built in a local prototype and never merged, because it
+  returned portion-blind numbers that sounded recognised.
+- **An on-device LLM for recipes.** It is 0.5-1.5 GB and slow on a mid-range
+  phone. Revisit once recognition ships.
+- **A public food classifier as a cold start.** Those are trained on
+  restaurant photos under unclear licences.
+
+This supersedes the 2026-09-27 Gemini entry, the 2026-09-28 Gemini wire,
+Chef provider and barcode entries, and the 2026-08-19 `claude-opus-5`,
+structured-output and single-valued-provider entries. The Room column
+recording each Dish's estimating model stays, for the Dishes that have one.
+
+---

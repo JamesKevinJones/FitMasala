@@ -36,7 +36,6 @@ import javax.inject.Singleton
 @Singleton
 class ImagePreprocessor @Inject constructor() {
 
-    // Sizes and quality come from PhotoSizing, shared with the #23 comparison runner.
     private val maxEdgePx = PhotoSizing.MAX_EDGE_PX
     private val jpegQuality = PhotoSizing.JPEG_QUALITY
 

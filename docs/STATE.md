@@ -1,64 +1,72 @@
 # STATE
 
-_Last updated: 2026-09-28 (late), after #29-#32 merged. Every planned feature
-is on `main` and no PRs are open. What remains is one local build and the
-steps only Kevin can do on his phone and with his keys._
+_Last updated: 2026-10-01._
 
 ## Where we are
 
-**All six phases are built and merged.** Photo meal logging (#2-#10), the
-provider work (#20-#22, #24), the finished Plan tab and app shell (#29), and
-the Claude vs Gemini comparison runner (#31) are all on `main`.
+**FitMasala is going fully on-device: no API key, no Claude, no Gemini, no
+network** (DECISIONS 2026-10-01). The cloud features merged on 27-28 September
+(#2-#36) keep running on `main` until their replacements land. The plan below
+removes them in an order where every merged state still works.
 
-**One issue is open: #23**, the comparison run. The runner is merged; the run
-itself needs Kevin's meal photos, a known-values table and both API keys (step
-6 below). It closes once the result is recorded in `docs/DECISIONS.md`.
+**`main` has now been through Gradle.** On 2026-10-01 the first local build
+compiled the app, KSP (Room's query checks and the Hilt graph), the debug APK
+and the instrumented tests, and 186 unit tests passed. The one failure was the
+Claude vs Gemini comparison tool: it used `java.awt` and `javax.imageio`, which
+are not on Android's compile classpath, so no unit test could compile. It is
+deleted, and Room's `2.json` schema from that build is committed.
 
-**None of it has been through Gradle.** Every PR since #14 was written in a
-cloud container with no Android SDK, so the first local build is the first
-real compile of the screens, Hilt wiring and Room queries.
+**Not verified yet:** anything on the phone. That means the Compose screens,
+navigation, the v1 -> v2 migration and the instrumented suites.
 
-### What has been verified, and how
+## The plan
 
-- **JVM harness** (a standalone Gradle project compiling the real pure-Kotlin
-  files against stubs for Android and Room): every unit-test suite passes,
-  including the new `PlanFormsTest` (15), `ComparisonToolsTest` (12) and the
-  Gemini recipe cases in `GeminiBackendTest`.
-- **Live APIs, fake keys:** the comparison runner reached both Anthropic and
-  Google, got `Unauthorized`, stopped at the first photo, and wrote no key.
-- **New SQL** was run in SQLite against tables built from the exported schema.
-- **Not verified anywhere yet:** Compose screens, navigation, Hilt wiring,
-  Room's compile-time query check, the v1 -> v2 migration on a device, and
-  every instrumented test.
+Each step is one issue and one PR.
+
+1. ✅ Record the decision, delete the comparison tool, commit schema v2.
+2. ⬜ Port the fixes found on 2026-10-01:
+   - Repeated meals log zero carbs and fat.
+   - Add a meal detail view with delete (`deleteMeal` has no caller).
+   - Back navigation on sub-screens other than Settings.
+   - Remove the active session's nested Scaffold and second FAB.
+3. ⬜ Brag video: the badge "100% on-device · IFCT-calibrated" was never true.
+   It becomes "No backend · no account"; re-render with a new poster.
+4. ⬜ Dish catalogue:
+   - Sourced ingredient rows (USDA FoodData Central or the pack label).
+   - Catalogue dishes as ingredient grams per Portion (katori = 150 ml).
+   - Catalogue search in the review sheet and in "Log a meal".
+   - The Chef becomes a recipe library.
+
+   Kevin then corrects the quantities to how it is cooked at home.
+5. ⬜ Remove the cloud:
+   - The Anthropic and Gemini backends, the provider setting and its keys.
+   - AI Chef generation.
+   - Barcode lookup and its scanner.
+   - The `INTERNET` and `ACCESS_NETWORK_STATE` permissions.
+
+   The AGENTS.md rules change with it.
+6. ⬜ Recognition:
+   - A bundled image embedder (MediaPipe Image Embedder, MobileNet-V3).
+   - Confirmed photos: an embedding plus a 224 px thumbnail, in a new Room table
+     with a real migration.
+   - A pre-filled review sheet plus chips.
+   - Thresholds tuned on the phone.
+
+The catalogue (4) lands before the cloud goes (5), so photo and typed logging
+always have something behind them.
 
 ## What Kevin needs to do
 
-1. **Pull `main` and build once:**
-   ```
-   .\gradlew.bat :app:testDebugUnitTest
-   .\gradlew.bat :app:assembleDebug
-   ```
-2. **Commit `app/schemas/com.kevinjones.fitmasala.data.local.FitMasalaDatabase/2.json`.**
-   Room writes it during that build (schema v2 added `estimateModel`, #20). It
-   is deliberately not hand-written.
-3. **Run the instrumented suites on the phone:**
-   ```
-   .\gradlew.bat :app:connectedDebugAndroidTest
-   ```
-   `MigrationTest` proves v1 -> v2 keeps existing meals.
-4. **On the phone:** start a cut (typed body fat, then tape only), log a
-   weigh-in with and without the tape, snap a meal, switch to Gemini with the
-   Anthropic key removed and ask the Chef for a recipe, then Cook & Eat.
-5. **Add the `CLAUDE_API_KEY` Actions secret** (Settings -> Secrets and
-   variables -> Actions). The `security` check fails on every PR with
-   `ANTHROPIC_API_KEY is not set` until then; nothing in the code fixes it.
-6. **The comparison run (#23):** 15-20 photos + `known.csv`, both keys, then
-   `docs/VERIFY.md` -> *Claude vs Gemini on your own meals*. Run it locally so
-   the keys stay on your machine, and hand the resulting `report.md` to an
-   agent session. The agent records the headline numbers under the 2026-09-27
-   Gemini entry in `docs/DECISIONS.md`, changes the default provider only if
-   Gemini's median calorie error is within Claude's plus 5 points, and closes
-   #23.
+1. **Fix the shared Gradle cache before building locally.** Every entry under
+   `~/.gradle/caches/8.13/transforms` lost its `metadata.bin` on 2026-09-06,
+   so builds fail with "Could not read workspace metadata". Close Android
+   Studio and move that directory aside; Gradle rebuilds it.
+2. **Run the instrumented suites on the phone:**
+   `.\gradlew.bat :app:connectedDebugAndroidTest`. `MigrationTest` proves
+   v1 -> v2 keeps existing meals. Steps 4 and 6 also need the phone.
+3. **The `security` CI check needs a `CLAUDE_API_KEY` repo secret** (Settings
+   -> Secrets and variables -> Actions). That is the CI reviewer only; the app
+   itself holds no key.
 
 ## What exists
 
@@ -70,11 +78,11 @@ real compile of the screens, Hilt wiring and Room queries.
 overrides, rest timer), `ImagePreprocessor` + `PhotoSizing`, photo store and
 90-day pruning. Day counts are distinct Meals, not Dishes (#2).
 
-**AI** - `CulinaryLlmClient` (recipes, photo and typed-dish estimates, Atwater
-advisories) over one `ProviderBackend` that routes every call to the provider
-chosen in Settings, with no fallback: `AnthropicBackend` or `GeminiBackend`,
-each on its own OkHttp client with its own key header. Every logged Estimate
-records its model (#20).
+**AI, until step 5** - `CulinaryLlmClient` (recipes, photo and typed-dish
+estimates, Atwater advisories) over one `ProviderBackend` that routes every
+call to the provider chosen in Settings, with no fallback: `AnthropicBackend`
+or `GeminiBackend`, each on its own OkHttp client with its own key header.
+Every logged Estimate records its model (#20).
 
 **Domain** - `domain/plan/` (body fat, weight trend, adaptive TDEE, macro
 solver, plan engine) and `domain/progress/` (streaks, XP), pure Kotlin.
@@ -83,22 +91,15 @@ solver, plan engine) and `domain/progress/` (streaks, XP), pure Kotlin.
 Snap a meal (camera or gallery, review sheet, per-Dish editing, typed Dishes,
 failure paths, log by hand), Log a meal (FAB: one typed dish, MANUAL not an
 Estimate, movable time), Scan a barcode (FAB: Google code scanner or typed
-digits, label from Open Food Facts, servings else grams, logged as BARCODE), Train + Active Session, Plan (setup form, weigh-in
-sheet with optional tape, trend chart, projection, edit or restart the cut), Settings (theme, AI
+digits, label from Open Food Facts, servings else grams, logged as BARCODE),
+Train + Active Session, Plan (setup form, weigh-in sheet with optional tape,
+trend chart, projection, edit or restart the cut), Settings (theme, AI
 provider, keys, rest timer).
 
 ## Known issues
 
 - **The Train overline is static text** ("Push · Pull · Legs"), as is the
   Chef's; only Today and Plan show live values.
-
-## Next
-
-After the steps above, the project is feature-complete for its brief, with no
-planned follow-ups left. Barcode lookup was the last one; its scanner library
-(`play-services-code-scanner` 16.1.0) and Open Food Facts' live responses could
-not be reached from the build container, so the first local build and a real
-scan are its first check.
 
 ## Device automation - do not repeat
 
