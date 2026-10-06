@@ -98,6 +98,7 @@ fun FitMasalaApp(
     val snapping = currentRoute == Routes.PHOTO_CAPTURE
     val loggingMeal = currentRoute == Routes.LOG_MEAL
     val scanning = currentRoute == Routes.BARCODE
+    val inSession = currentRoute == Routes.ACTIVE_SESSION
     var destination by remember(currentRoute) {
         mutableStateOf(
             TopLevelDestination.entries.find { it.route == currentRoute }
@@ -221,7 +222,8 @@ fun FitMasalaApp(
                 // No FAB on Settings: a FAB is the screen's primary action, and
                 // Settings has none. It was also physically covering a switch.
                 // None while snapping or logging either: "Log dish" is that screen's action.
-                if (!showSettings && !snapping && !loggingMeal && !scanning) {
+                // None in a workout: adding an exercise and finishing are its actions.
+                if (!showSettings && !snapping && !loggingMeal && !scanning && !inSession) {
                     FmExpandableFab(
                         actions = quickActions,
                         expanded = fabExpanded,

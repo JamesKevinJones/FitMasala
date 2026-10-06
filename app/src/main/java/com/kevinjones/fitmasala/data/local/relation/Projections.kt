@@ -70,7 +70,12 @@ data class FrequentMeal(
     /** Averaged over past logs, so a one-off large portion does not set the default. */
     val avgCalories: Double,
     val avgProteinG: Double,
+    val avgCarbsG: Double,
+    val avgFatG: Double,
+    val avgFiberG: Double,
     val avgPortionQuantity: Double,
+    /** True if any averaged log was an Estimate; one estimated log makes the average one too. */
+    val anyEstimate: Boolean,
 )
 
 /**
