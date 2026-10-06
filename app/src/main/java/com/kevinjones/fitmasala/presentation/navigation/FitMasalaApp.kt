@@ -1,6 +1,12 @@
 package com.kevinjones.fitmasala.presentation.navigation
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -37,6 +43,7 @@ import com.kevinjones.fitmasala.core.ui.components.FmLargeTopBar
 import com.kevinjones.fitmasala.core.ui.components.FmNavigationBar
 import com.kevinjones.fitmasala.core.ui.components.FmNavigationRail
 import com.kevinjones.fitmasala.core.ui.components.rememberCollapsingBarBehavior
+import com.kevinjones.fitmasala.core.ui.theme.FmMotion
 import com.kevinjones.fitmasala.core.ui.theme.horizontalMargin
 import com.kevinjones.fitmasala.core.ui.theme.screenContentPadding
 import kotlinx.coroutines.launch
@@ -49,9 +56,11 @@ import com.kevinjones.fitmasala.core.util.DateKeys
 import com.kevinjones.fitmasala.presentation.plan.PlanViewModel
 import com.kevinjones.fitmasala.presentation.plan.cutWeek
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import com.kevinjones.fitmasala.presentation.chef.AiChefScreen
 import com.kevinjones.fitmasala.presentation.dashboard.DashboardScreen
+import com.kevinjones.fitmasala.presentation.dashboard.TodayVoice
 import com.kevinjones.fitmasala.presentation.plan.PlanScreen
 import com.kevinjones.fitmasala.presentation.settings.SettingsScreen
 import com.kevinjones.fitmasala.presentation.settings.SettingsViewModel
@@ -84,6 +93,7 @@ fun FitMasalaApp(
     planViewModel: PlanViewModel = hiltViewModel(),
 ) {
     val plan by planViewModel.state.collectAsStateWithLifecycle()
+    val settings by settingsViewModel.settings.collectAsStateWithLifecycle()
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -189,14 +199,19 @@ fun FitMasalaApp(
                         snapping -> "Snap a meal"
                         loggingMeal -> "Log a meal"
                         scanning -> "Scan a barcode"
-                        else -> titleFor(destination)
+                        else -> titleFor(destination, settings.displayName)
                     },
-                    overline = if (showSettings || snapping || loggingMeal || scanning) {
+                    subtitle = if (showSettings || snapping || loggingMeal || scanning) {
                         null
                     } else {
-                        overlineFor(destination, cutWeek(plan.startedAtDayEpoch, DateKeys.today()))
+                        subtitleFor(destination, cutWeek(plan.startedAtDayEpoch, DateKeys.today()))
                     },
                     scrollBehavior = scrollBehavior,
+                    onBack = if (showSettings || snapping || loggingMeal || scanning) {
+                        { navController.popBackStack() }
+                    } else {
+                        null
+                    },
                     actions = {
                         FmBarAction(
                             icon = SettingsIconOutlined,
@@ -247,19 +262,39 @@ fun FitMasalaApp(
                         scope.launch { snackbarHostState.showSnackbar(message) }
                     },
                 )
+                // Behind the open quick-actions menu, the page recedes so the labels
+                // never sit on top of the thali. A tap anywhere closes it.
+                // Qualified: inside the shell's Row, the RowScope overload would win.
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = fabExpanded,
+                    enter = fadeIn(tween(FmMotion.Surface, easing = FmMotion.EaseOutQuart)),
+                    exit = fadeOut(tween(FmMotion.SurfaceExit)),
+                ) {
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background.copy(alpha = 0.88f))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { fabExpanded = false },
+                            ),
+                    )
+                }
             }
         }
     }
 }
 
-private fun titleFor(destination: TopLevelDestination) = when (destination) {
-    TopLevelDestination.DASHBOARD -> "Today"
+private fun titleFor(destination: TopLevelDestination, name: String) = when (destination) {
+    // Today greets you; the date underneath says which day it is.
+    TopLevelDestination.DASHBOARD -> TodayVoice.greeting(LocalTime.now().hour, name)
     TopLevelDestination.CHEF -> "Chef"
     TopLevelDestination.TRAIN -> "Train"
     TopLevelDestination.PLAN -> "Plan"
 }
 
-private fun overlineFor(destination: TopLevelDestination, week: Int?): String? = when (destination) {
+private fun subtitleFor(destination: TopLevelDestination, week: Int?): String? = when (destination) {
     TopLevelDestination.DASHBOARD -> LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, d MMMM"))
     TopLevelDestination.CHEF -> "What's in my dabba"
     TopLevelDestination.TRAIN -> "Push · Pull · Legs"

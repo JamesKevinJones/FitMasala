@@ -81,7 +81,7 @@ class DashboardViewModel @Inject constructor(
             proteinG = totals.proteinG.toInt(),
             carbsG = totals.carbsG.toInt(),
             fatG = totals.fatG.toInt(),
-            targets = plan.projection?.dailyTarget ?: manualTargets(prefs),
+            targets = dailyTarget(plan, prefs),
             progress = prog,
             maintenanceKcal = plan.projection?.maintenanceCalories,
             weeklyRateKg = plan.projection?.weeklyRateKg,
@@ -96,11 +96,17 @@ class DashboardViewModel @Inject constructor(
     )
 
     fun deleteMeal(id: Long) = viewModelScope.launch { meals.delete(id) }
+}
 
-    private fun manualTargets(prefs: AppSettings) = MacroTarget(
+/**
+ * The day's target: the plan's adaptive one when a cut is active, else the
+ * manual numbers from Settings. One rule, so Today and the photo review can
+ * never disagree about the size of the plate.
+ */
+internal fun dailyTarget(plan: PlanSnapshot, prefs: AppSettings): MacroTarget =
+    plan.projection?.dailyTarget ?: MacroTarget(
         calories = prefs.dailyCalorieTarget,
         proteinG = prefs.proteinTargetG,
         carbsG = prefs.carbTargetG,
         fatG = prefs.fatTargetG,
     )
-}

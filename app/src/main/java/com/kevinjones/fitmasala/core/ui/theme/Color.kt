@@ -26,7 +26,11 @@ val MacroFatDark = Color(0xFFD96F4E)
 
 // Around tone 45-50: dark enough to hold contrast on a near-white surface.
 val MacroProteinLight = Color(0xFFA96900)
-val MacroCarbsLight = Color(0xFF7A6A10)
+// Toasted wheat, ~42 degrees. Was #7A6A10, ~51 degrees: dark yellow reads olive,
+// which looked like the progress green, and its luminance (0.145) all but matched
+// fat's (0.140). Now the darkest of the three - 0.185 / 0.140 / 0.108 - so the
+// lightness steps survive colour deficiency. 6.3:1 on N98.
+val MacroCarbsLight = Color(0xFF755812)
 val MacroFatLight = Color(0xFFB44424)
 
 /** Streak tiers. The flame only warms as the streak is earned. */

@@ -19,6 +19,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -49,6 +51,7 @@ import com.kevinjones.fitmasala.core.ui.theme.Fm
 fun SettingsScreen(
     settings: AppSettings,
     onThemeMode: (ThemeMode) -> Unit,
+    onDisplayName: (String) -> Unit,
     onApiKey: (String) -> Unit,
     onClearApiKey: () -> Unit,
     onProvider: (LlmProvider) -> Unit,
@@ -64,6 +67,9 @@ fun SettingsScreen(
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(Fm.section),
     ) {
+        item("you-header") { SectionHeader("You") }
+        item("you") { NameCard(settings.displayName, onDisplayName) }
+
         item("appearance-header") { SectionHeader("Appearance") }
         item("appearance") {
             FmCard(
@@ -154,6 +160,32 @@ fun SettingsScreen(
                 modifier = Modifier.padding(horizontal = Fm.hair),
             )
         }
+    }
+}
+
+/**
+ * The name Today greets you by. Saved as you type: there is nothing to confirm,
+ * and a Save button for one word is ceremony.
+ */
+@Composable
+private fun NameCard(saved: String, onDisplayName: (String) -> Unit) {
+    // Local draft, so the DataStore round-trip never moves the caret mid-word.
+    var draft by remember { mutableStateOf(saved) }
+    FmCard(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Fm.snug)) {
+        Text("What should Today call you?", style = MaterialTheme.typography.titleMedium)
+        FmTextField(
+            value = draft,
+            onValueChange = {
+                draft = it
+                onDisplayName(it)
+            },
+            placeholder = "Your first name",
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                imeAction = ImeAction.Done,
+            ),
+        )
     }
 }
 
