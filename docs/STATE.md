@@ -1,6 +1,6 @@
 # STATE
 
-_Last updated: 2026-10-01._
+_Last updated: 2026-10-06._
 
 ## Where we are
 
@@ -60,10 +60,16 @@ always have something behind them.
 
 ## What Kevin needs to do
 
-1. **Fix the shared Gradle cache before building locally.** Every entry under
-   `~/.gradle/caches/8.13/transforms` lost its `metadata.bin` on 2026-09-06,
-   so builds fail with "Could not read workspace metadata". Close Android
-   Studio and move that directory aside; Gradle rebuilds it.
+1. **Look at the Today redesign on the phone** (branch `claude/soulful-today`,
+   DECISIONS 2026-10-06). It was checked on the emulator in light, dark and at
+   font scale 1.3 with seeded data (screenshots in `.impeccable/review/`, not
+   committed), but not on real hardware. Set your name under Settings -> You.
+   The photo review's thali preview (DECISIONS 2026-10-06) was rendered with
+   sample data, never reached live: that needs a real estimate (key + network).
+   The emulator is now `FitMasala_API35` (Pixel 8, API 35 google_apis x86_64;
+   SDK `cmdline-tools/latest` installed 2026-10-06). The old `Pixel_9` AVD is
+   broken: its `.avd` folder is gone. The debug build's package is
+   `com.kevinjones.fitmasala.debug`.
 2. **Run the instrumented suites on the phone:**
    `.\gradlew.bat :app:connectedDebugAndroidTest`. `MigrationTest` proves
    v1 -> v2 keeps existing meals. Steps 4 and 6 also need the phone.

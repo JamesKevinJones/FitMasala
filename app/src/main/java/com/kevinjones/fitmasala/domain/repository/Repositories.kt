@@ -28,6 +28,8 @@ import kotlinx.coroutines.flow.Flow
 interface MealRepository {
     fun observeToday(): Flow<List<LoggedMealEntity>>
     fun observeTodayTotals(): Flow<DailyMacroTotals>
+    /** Any day's totals: a photo from earlier lands on the day it was taken. */
+    fun observeDayTotals(dayEpoch: Long): Flow<DailyMacroTotals>
     fun observeFrequentMeals(limit: Int = 12): Flow<List<FrequentMeal>>
 
     /** Re-logs a dish the user has eaten before, at a given portion count. */

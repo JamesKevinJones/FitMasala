@@ -8,6 +8,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,7 +56,12 @@ fun StreakBadge(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("🔥", style = MaterialTheme.typography.labelMedium)
+        Icon(
+            imageVector = Icons.Filled.LocalFireDepartment,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(16.dp),
+        )
         Text(
             text = if (days == 0) "No streak" else "$days day${if (days == 1) "" else "s"}",
             style = MaterialTheme.typography.labelMedium,
@@ -148,7 +158,12 @@ fun GoalMetPill(text: String, modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.spacedBy(5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("✓", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.fm.progress)
+        Icon(
+            imageVector = Icons.Filled.Check,
+            contentDescription = null,
+            tint = MaterialTheme.fm.progress,
+            modifier = Modifier.size(14.dp),
+        )
         Text(
             text = text,
             style = MaterialTheme.typography.labelSmall,

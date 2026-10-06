@@ -42,6 +42,9 @@ class MealRepositoryImpl @Inject constructor(
     override fun observeTodayTotals(): Flow<DailyMacroTotals> =
         observeForToday(dao::observeDayTotals)
 
+    override fun observeDayTotals(dayEpoch: Long): Flow<DailyMacroTotals> =
+        dao.observeDayTotals(dayEpoch)
+
     override fun observeFrequentMeals(limit: Int): Flow<List<FrequentMeal>> =
         dao.observeFrequentMeals(limit)
 

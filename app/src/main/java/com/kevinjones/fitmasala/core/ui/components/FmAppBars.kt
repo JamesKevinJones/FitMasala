@@ -47,8 +47,11 @@ fun rememberPinnedBarBehavior(): TopAppBarScrollBehavior =
 /**
  * Large collapsing bar for a top-level destination.
  *
- * @param overline a short line above the title - the date, the day of the cut.
- *   Optional, and never used for anything the title already says.
+ * @param subtitle a short line under the title - the date, the week of the cut.
+ *   Optional, and never used for anything the title already says. Below, not
+ *   above: the title is read first, and an eyebrow over it reads as a label.
+ * @param onBack set on a pushed screen (Snap a meal, Settings) so it carries an
+ *   Up arrow; null on a top-level tab, which has nowhere to go up to.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,25 +59,34 @@ fun FmLargeTopBar(
     title: String,
     scrollBehavior: TopAppBarScrollBehavior,
     modifier: Modifier = Modifier,
-    overline: String? = null,
+    subtitle: String? = null,
+    onBack: (() -> Unit)? = null,
     actions: @Composable () -> Unit = {},
 ) {
     LargeTopAppBar(
+        navigationIcon = {
+            if (onBack != null) {
+                IconButton(onClick = onBack, modifier = Modifier.size(Fm.touchTarget)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+            }
+        },
         title = {
             Column {
-                if (overline != null) {
-                    Text(
-                        text = overline,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
                 Text(
                     text = title,
                     style = MaterialTheme.typography.headlineMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
             }
         },
         actions = { Row(verticalAlignment = Alignment.CenterVertically) { actions() } },

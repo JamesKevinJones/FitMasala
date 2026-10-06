@@ -4,19 +4,33 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kevinjones.fitmasala.core.util.DateKeys
 import com.kevinjones.fitmasala.core.util.exifTakenAt
 import com.kevinjones.fitmasala.core.util.mealTypeAt
 import com.kevinjones.fitmasala.core.util.resolveEatenAt
 import com.kevinjones.fitmasala.data.local.entity.MealType
+import com.kevinjones.fitmasala.data.local.relation.DailyMacroTotals
 import com.kevinjones.fitmasala.data.photo.ImagePreprocessor
 import com.kevinjones.fitmasala.data.photo.MealPhotoStore
 import com.kevinjones.fitmasala.data.remote.CulinaryLlmClient
 import com.kevinjones.fitmasala.data.remote.LlmResult
 import com.kevinjones.fitmasala.data.remote.toBase64
+import com.kevinjones.fitmasala.data.prefs.SettingsStore
+import com.kevinjones.fitmasala.domain.plan.MacroTarget
 import com.kevinjones.fitmasala.domain.repository.MealRepository
+import com.kevinjones.fitmasala.domain.repository.PlanRepository
+import com.kevinjones.fitmasala.presentation.dashboard.dailyTarget
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +39,9 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.ZoneId
 import javax.inject.Inject
+
+/** What is already on [dayEpoch]'s plate, and how big the plate is. */
+data class DayPlate(val dayEpoch: Long, val eaten: DailyMacroTotals, val target: MacroTarget)
 
 /**
  * Drives "Snap a meal": camera app -> on-device downscale -> vision estimate ->
@@ -42,10 +59,31 @@ class SnapMealViewModel @Inject constructor(
     private val preprocessor: ImagePreprocessor,
     private val culinaryClient: CulinaryLlmClient,
     private val meals: MealRepository,
+    plans: PlanRepository,
+    settings: SettingsStore,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<SnapMealState>(SnapMealState.Capturing)
     val state: StateFlow<SnapMealState> = _state.asStateFlow()
+
+    /**
+     * The plate of the day the reviewed meal lands on - not always today: a
+     * photo from earlier counts on the day it was taken. Null outside review.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val plate: StateFlow<DayPlate?> = _state
+        .map { (it as? SnapMealState.Review)?.eatenAt?.let(DateKeys::dayEpochOf) }
+        .distinctUntilChanged()
+        .flatMapLatest { day ->
+            if (day == null) {
+                flowOf(null)
+            } else {
+                combine(meals.observeDayTotals(day), plans.observePlan(), settings.settings) { totals, plan, prefs ->
+                    DayPlate(day, totals, dailyTarget(plan, prefs))
+                }
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private var pendingPath: String?
         get() = savedState[KEY_PENDING_PATH]

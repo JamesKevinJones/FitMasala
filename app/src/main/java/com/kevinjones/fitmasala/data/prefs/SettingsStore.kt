@@ -49,6 +49,8 @@ enum class LlmProvider(val label: String, val description: String) {
 
 /** Everything on the Settings screen, as one immutable snapshot. */
 data class AppSettings(
+    /** What Today calls you. Blank greets without a name. */
+    val displayName: String = "",
     /** The Anthropic key. */
     val apiKey: String = "",
     /** Who answers every AI call: the chef and meal estimates. */
@@ -115,6 +117,7 @@ class SettingsStore @Inject constructor(
         val REST_SECONDS = intPreferencesKey("rest_seconds")
         val REST_VIBRATE = booleanPreferencesKey("rest_vibrate")
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val DISPLAY_NAME = stringPreferencesKey("display_name")
     }
 
     /**
@@ -131,6 +134,7 @@ class SettingsStore @Inject constructor(
                 ?.let { raw -> LlmProvider.entries.firstOrNull { it.name == raw } }
                 ?: LlmProvider.ANTHROPIC
             AppSettings(
+                displayName = prefs[Keys.DISPLAY_NAME].orEmpty(),
                 apiKey = prefs[Keys.API_KEY].orEmpty(),
                 provider = provider,
                 modelId = prefs[Keys.MODEL_ID].orEmpty(),
@@ -177,6 +181,8 @@ class SettingsStore @Inject constructor(
     suspend fun setRestTimerVibrate(enabled: Boolean) = edit { it[Keys.REST_VIBRATE] = enabled }
 
     suspend fun setThemeMode(mode: ThemeMode) = edit { it[Keys.THEME_MODE] = mode.name }
+
+    suspend fun setDisplayName(name: String) = edit { it[Keys.DISPLAY_NAME] = name.trim() }
 
     private suspend fun edit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         context.dataStore.edit(block)
