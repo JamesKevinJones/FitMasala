@@ -1029,3 +1029,66 @@ structured-output and single-valued-provider entries. The Room column
 recording each Dish's estimating model stays, for the Dishes that have one.
 
 ---
+
+---
+
+## 2026-10-06 — Today is a thali, and it talks to you
+
+**Decision:** The Today screen's hero is a steel thali drawn in Compose
+(`FmThali`): the rim is the calorie meter, and three katoris fill with protein,
+carbs and fat. The large top bar greets by time of day and by the name set in
+Settings ("You"), with the date as a subtitle under the title rather than an
+eyebrow over it. A single sentence from `TodayVoice` sits above the plate.
+Dishes are grouped into one card per Meal, and recent sessions share one card.
+
+**Why:** The old hero was a big number plus three identical rings, which could
+have belonged to any tracker. A thali is how this food is actually served, and
+it holds the same four numbers. The voice is honest about the rules: it names
+the two-Meal Valid day while it is still reachable, says "over" plainly, and
+never praises a bigger deficit, matching the streak's own rule. The streak and
+goal badges now draw Material icons instead of emoji. The "History" link on
+Progress was removed because it did nothing, as was a second XP meter that
+duplicated `LevelBar`.
+
+**Kept:** Saffron, wheat and terracotta for the macros, overshoot in the error
+colour (a katori over target gets a red rim), DM Sans, and the 8% hairline
+depth. This enriches the established world rather than replacing it.
+
+---
+
+## 2026-10-06 — The photo review pours the meal onto the day's thali
+
+**Decision:** Snap a meal's review ends on the same thali as Today, for the
+day the meal lands on (`SnapMealViewModel.plate`, from the new
+`MealRepository.observeDayTotals`). What is logged is drawn solid, and this
+meal is poured in pale on top (`FmThali`'s `kcalAdding` / `Katori.adding`),
+under one line from `TodayVoice.afterMeal`: "Takes today to 1,620 of 2,200
+kcal." or "Puts today 220 kcal over." Today and the review now share one
+target rule, `dailyTarget()`, and one legend, `FmKatoriLegend`.
+
+**Why:** The review used to end on a generic total, so the cost of a meal was
+only seen on Today after logging it. Going over now shows in red before "Log
+meal". The day follows the meal's time, so a photo from earlier previews on
+that day's plate, not today's.
+
+**Also:** The capture prompt names the meal the clock suggests ("Photograph
+your dinner"), the same guess the review starts from. Pushed screens (Snap a
+meal, Log a meal, Scan a barcode, Settings) carry an Up arrow. The open
+quick-actions menu fades the page behind it, so its labels no longer sit on
+the thali.
+
+**Known edge:** if the same photo was already logged (the "already logged"
+advisory), the preview counts it twice. The advisory above it says so.
+
+---
+
+## 2026-10-06 — Light-theme carbs: toasted wheat, not olive
+
+**Decision:** `MacroCarbsLight` moves from `#7A6A10` (~51 degrees) to `#755812`
+(~42 degrees). Dark (`#E8C86A`) is unchanged.
+
+**Why:** At that darkness the old yellow read olive, close enough to the
+progress green to blur "warm = food, green = progress". Its luminance (0.145)
+also nearly matched fat's (0.140), so the lightness separation `Color.kt`
+promises for colour deficiency was not there. Carbs is now the darkest of the
+three (0.185 / 0.140 / 0.108), at 6.3:1 on N98.

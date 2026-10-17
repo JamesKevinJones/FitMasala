@@ -123,6 +123,7 @@ fun FitMasalaNavGraph(
             SettingsScreen(
                 settings = settings,
                 onThemeMode = settingsViewModel::setThemeMode,
+                onDisplayName = settingsViewModel::setDisplayName,
                 onApiKey = settingsViewModel::setApiKey,
                 onClearApiKey = settingsViewModel::clearApiKey,
                 onProvider = settingsViewModel::setProvider,

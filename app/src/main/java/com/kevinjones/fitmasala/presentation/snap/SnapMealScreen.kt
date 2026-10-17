@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -64,6 +65,7 @@ import com.kevinjones.fitmasala.core.ui.components.FmCard
 import com.kevinjones.fitmasala.core.ui.components.FmChip
 import com.kevinjones.fitmasala.core.ui.components.FmEmptyState
 import com.kevinjones.fitmasala.core.ui.components.FmErrorState
+import com.kevinjones.fitmasala.core.ui.components.FmKatoriLegend
 import com.kevinjones.fitmasala.core.ui.components.FmListItem
 import com.kevinjones.fitmasala.core.ui.components.FmListValue
 import com.kevinjones.fitmasala.core.ui.components.FmSegmentedButtons
@@ -72,17 +74,23 @@ import com.kevinjones.fitmasala.core.ui.components.FmStat
 import com.kevinjones.fitmasala.core.ui.components.FmStatRow
 import com.kevinjones.fitmasala.core.ui.components.FmStepper
 import com.kevinjones.fitmasala.core.ui.components.FmTextField
+import com.kevinjones.fitmasala.core.ui.components.FmThali
+import com.kevinjones.fitmasala.core.ui.components.Katori
 import com.kevinjones.fitmasala.core.ui.components.SectionHeader
 import com.kevinjones.fitmasala.core.ui.components.displayName
 import com.kevinjones.fitmasala.core.ui.theme.Fm
 import com.kevinjones.fitmasala.core.ui.theme.MaxContentWidth
 import com.kevinjones.fitmasala.core.ui.theme.fm
+import com.kevinjones.fitmasala.core.ui.theme.numeric
+import com.kevinjones.fitmasala.core.util.DateKeys
 import com.kevinjones.fitmasala.core.util.combineDateAndTime
+import com.kevinjones.fitmasala.core.util.mealTypeAt
 import com.kevinjones.fitmasala.core.util.pickerDateOf
 import com.kevinjones.fitmasala.data.local.entity.Macros
 import com.kevinjones.fitmasala.data.local.entity.MealType
 import com.kevinjones.fitmasala.data.local.entity.PortionUnit
 import com.kevinjones.fitmasala.data.remote.dto.confidenceToScore
+import com.kevinjones.fitmasala.presentation.dashboard.TodayVoice
 import java.time.Instant
 import java.time.ZoneId
 import kotlin.math.roundToInt
@@ -104,6 +112,7 @@ fun SnapMealScreen(
     viewModel: SnapMealViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val plate by viewModel.plate.collectAsStateWithLifecycle()
     val context = LocalContext.current
     /** Index of the dish being renamed; null when no dialog is open. */
     var renaming by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -152,7 +161,8 @@ fun SnapMealScreen(
             SnapMealState.Capturing -> item {
                 FmEmptyState(
                     icon = Icons.Outlined.CameraAlt,
-                    title = "Photograph your plate",
+                    // Named for the meal the clock suggests - the same guess the review starts from.
+                    title = "Photograph your ${mealTypeAt(System.currentTimeMillis()).label().lowercase()}",
                     body = "Shoot from above with the whole plate in frame. A katori or roti " +
                         "beside the food helps judge the portion. A photo from earlier is " +
                         "logged at the time it was taken.",
@@ -197,6 +207,7 @@ fun SnapMealScreen(
 
             is SnapMealState.Review -> reviewItems(
                 review = current,
+                plate = plate,
                 itemModifier = itemModifier,
                 onMealType = viewModel::setMealType,
                 onStep = viewModel::stepDish,
@@ -284,10 +295,12 @@ fun SnapMealScreen(
 /**
  * The review: every Dish with its portion, confidence and what the model could
  * not see; any advisories first, where they cannot be scrolled past; the total
- * as the sum of the dishes; one primary action.
+ * poured onto the day's thali, so the decision is made looking at the day; one
+ * primary action.
  */
 private fun LazyListScope.reviewItems(
     review: SnapMealState.Review,
+    plate: DayPlate?,
     itemModifier: Modifier,
     onMealType: (MealType) -> Unit,
     onStep: (index: Int, up: Boolean) -> Unit,
@@ -375,7 +388,7 @@ private fun LazyListScope.reviewItems(
     }
 
     if (review.dishes.isNotEmpty()) {
-        item { TotalCard(review.total, itemModifier) }
+        item { MealOnPlateCard(review.total, plate, itemModifier) }
     }
 
     item {
@@ -754,6 +767,60 @@ private fun RenameDishDialog(current: String, onRename: (String) -> Unit, onDism
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
+}
+
+/**
+ * This meal on the plate of the day it lands on: what is logged drawn solid, this
+ * meal poured in pale on top - Today's card, one meal ahead. Going over shows in
+ * red here, before "Log meal", rather than on Today after it.
+ */
+@Composable
+private fun MealOnPlateCard(total: Macros, plate: DayPlate?, modifier: Modifier) {
+    // Room answers in milliseconds; until then, the plain sum.
+    if (plate == null) return TotalCard(total, modifier)
+    val fm = MaterialTheme.fm
+    val eaten = plate.eaten
+    val target = plate.target
+    val katoris = listOf(
+        Katori(eaten.proteinG.toFloat(), target.proteinG.toFloat(), fm.macroProtein, "Protein", total.proteinG.toFloat()),
+        Katori(eaten.carbsG.toFloat(), target.carbsG.toFloat(), fm.macroCarbs, "Carbs", total.carbsG.toFloat()),
+        Katori(eaten.fatG.toFloat(), target.fatG.toFloat(), fm.macroFat, "Fat", total.fatG.toFloat()),
+    )
+    val line = TodayVoice.afterMeal(
+        day = TodayVoice.dayName(plate.dayEpoch, DateKeys.today()),
+        eatenKcal = eaten.calories.roundToInt(),
+        addingKcal = total.calories.roundToInt(),
+        targetKcal = target.calories,
+    )
+
+    FmCard(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Fm.gap)) {
+        Text(line, style = MaterialTheme.typography.titleMedium)
+        Column(
+            Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(Fm.snug),
+        ) {
+            FmThali(
+                kcal = eaten.calories.toFloat(),
+                kcalTarget = target.calories.toFloat(),
+                katoris = katoris,
+                kcalAdding = total.calories.toFloat(),
+                size = 168.dp,
+            )
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text("+${"%,d".format(total.calories.roundToInt())}", style = numeric(28))
+                Text(
+                    "  kcal this meal",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = fm.textSecondary,
+                    modifier = Modifier.padding(bottom = Fm.hair),
+                )
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            katoris.forEach { FmKatoriLegend(it) }
+        }
+    }
 }
 
 /** The sum of the dishes. Warm macro colours: this is food, not progress. */

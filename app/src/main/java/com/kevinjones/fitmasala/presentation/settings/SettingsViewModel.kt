@@ -36,6 +36,8 @@ class SettingsViewModel @Inject constructor(
 
     fun setThemeMode(mode: ThemeMode) = viewModelScope.launch { store.setThemeMode(mode) }
 
+    fun setDisplayName(name: String) = viewModelScope.launch { store.setDisplayName(name) }
+
     fun setApiKey(key: String) = viewModelScope.launch { store.setApiKey(key) }
 
     fun clearApiKey() = viewModelScope.launch { store.clearApiKey() }

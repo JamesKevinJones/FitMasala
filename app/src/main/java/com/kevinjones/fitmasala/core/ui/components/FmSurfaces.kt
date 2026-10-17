@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -153,7 +154,9 @@ fun FmTextField(
         textStyle = MaterialTheme.typography.bodyLarge.copy(color = colors.onSurface),
         cursorBrush = SolidColor(colors.primary),
         decorationBox = { inner ->
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+            // A Box, so the placeholder sits UNDER the caret. A Column stacked
+            // them, which made every field a line taller than its content.
+            Box(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                 if (value.isEmpty() && placeholder != null) {
                     Text(
                         text = placeholder,

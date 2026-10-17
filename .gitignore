@@ -29,3 +29,6 @@ captures/
 
 # Agent-session scratch artifacts
 .artifacts/
+
+# Impeccable design-review screenshots and scratch
+.impeccable/
