@@ -1,6 +1,6 @@
 # STATE
 
-_Last updated: 2026-10-01._
+_Last updated: 2026-10-21._
 
 ## Where we are
 
@@ -19,6 +19,26 @@ deleted, and Room's `2.json` schema from that build is committed.
 **Not verified yet:** anything on the phone. That means the Compose screens,
 navigation, the v1 -> v2 migration and the instrumented suites.
 
+**Since then (to 2026-10-21):** steps 1 and 2 merged (#37, #38). Steps 3-6 are
+open issues #39-#42, labelled `ready-for-agent`, none started; the cloud code
+is still on `main`. The security workflow was pinned to `claude-opus-5-5` on
+2026-10-07. Nothing else has landed on `main`.
+
+**Two PRs are open, unmerged since 2026-10-06:**
+
+- **#43, Today is a thali** (`claude/soulful-today`, DECISIONS 2026-10-06 on
+  that branch): Today's hero becomes a steel thali whose rim is the calorie
+  meter, and the photo review shows the meal poured onto the day before
+  logging. Built and checked on the `FitMasala_API35` emulator in light, dark
+  and at 1.3x font scale; 194 unit tests pass. The review's thali was only
+  rendered with sample data. It also edits this file.
+- **#44, four operating modes** (`claude/operating-modes`): BA, architect,
+  engineer and auditor personas in `.claude/modes/`, switched with `/mode`.
+  Agent tooling only; no app code.
+
+Both show the `security` check failing for the reason under "What Kevin needs
+to do", not for anything in their diffs.
+
 ## The plan
 
 Each step is one issue and one PR.
@@ -32,23 +52,23 @@ Each step is one issue and one PR.
 
    Back navigation on sub-screens was suspected too, but the NavHost's own back
    handler already pops them; check it on the phone before changing anything.
-3. ⬜ Brag video: the badge "100% on-device · IFCT-calibrated" was never true.
+3. ⬜ Brag video (#39): the badge "100% on-device · IFCT-calibrated" was never true.
    It becomes "No backend · no account"; re-render with a new poster.
-4. ⬜ Dish catalogue:
+4. ⬜ Dish catalogue (#40):
    - Sourced ingredient rows (USDA FoodData Central or the pack label).
    - Catalogue dishes as ingredient grams per Portion (katori = 150 ml).
    - Catalogue search in the review sheet and in "Log a meal".
    - The Chef becomes a recipe library.
 
    Kevin then corrects the quantities to how it is cooked at home.
-5. ⬜ Remove the cloud:
+5. ⬜ Remove the cloud (#41):
    - The Anthropic and Gemini backends, the provider setting and its keys.
    - AI Chef generation.
    - Barcode lookup and its scanner.
    - The `INTERNET` and `ACCESS_NETWORK_STATE` permissions.
 
    The AGENTS.md rules change with it.
-6. ⬜ Recognition:
+6. ⬜ Recognition (#42):
    - A bundled image embedder (MediaPipe Image Embedder, MobileNet-V3).
    - Confirmed photos: an embedding plus a 224 px thumbnail, in a new Room table
      with a real migration.
@@ -60,10 +80,10 @@ always have something behind them.
 
 ## What Kevin needs to do
 
-1. **Fix the shared Gradle cache before building locally.** Every entry under
-   `~/.gradle/caches/8.13/transforms` lost its `metadata.bin` on 2026-09-06,
-   so builds fail with "Could not read workspace metadata". Close Android
-   Studio and move that directory aside; Gradle rebuilds it.
+1. **Decide on the open PRs.** Merge or close #43 (Today redesign; look at it
+   on the phone first) and #44 (operating modes). The Gradle-cache problem
+   noted here on 2026-10-01 is behind you: #43 was built and run on the
+   emulator on 2026-10-06.
 2. **Run the instrumented suites on the phone:**
    `.\gradlew.bat :app:connectedDebugAndroidTest`. `MigrationTest` proves
    v1 -> v2 keeps existing meals. Steps 4 and 6 also need the phone.
@@ -90,7 +110,8 @@ Every logged Estimate records its model (#20).
 **Domain** - `domain/plan/` (body fat, weight trend, adaptive TDEE, macro
 solver, plan engine) and `domain/progress/` (streaks, XP), pure Kotlin.
 
-**Screens** - Today (meals, plan target, streak, sessions), Chef + AI Chef,
+**Screens** - Today (meals, plan target, streak, sessions; tap a Dish for its
+details and delete), Chef + AI Chef,
 Snap a meal (camera or gallery, review sheet, per-Dish editing, typed Dishes,
 failure paths, log by hand), Log a meal (FAB: one typed dish, MANUAL not an
 Estimate, movable time), Scan a barcode (FAB: Google code scanner or typed
